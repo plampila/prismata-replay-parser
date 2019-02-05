@@ -1,4 +1,5 @@
 import { DataError } from './customErrors';
+import { Unit } from './gameState';
 
 export function deepClone(o: any) {
     if (o === undefined || o === null || typeof(o) !== 'object') {
@@ -12,12 +13,12 @@ export function deepClone(o: any) {
     return temp;
 };
 
-export function blocking(unit) {
+export function blocking(unit: Unit) {
     return (!unit.destroyed && !unit.sacrificed && !unit.delay && unit.defaultBlocking &&
         !unit.abilityUsed) === true;
 }
 
-export function purchasedThisTurn(unit) {
+export function purchasedThisTurn(unit: Unit) {
     if (unit.destroyed || !unit.purchased) {
         return false;
     }
@@ -27,11 +28,11 @@ export function purchasedThisTurn(unit) {
     return unit.delay === unit.buildTime;
 };
 
-export function frozen(unit) {
+export function frozen(unit: Unit) {
     return !unit.destroyed && unit.disruption >= unit.toughness;
 };
 
-function validSnipeTarget(unit, condition) {
+function validSnipeTarget(unit: Unit, condition: any) {
     if (unit.delay && unit.purchased) {
         return false;
     }
@@ -68,7 +69,7 @@ function validSnipeTarget(unit, condition) {
     });
 }
 
-function validChillTarget(unit) {
+function validChillTarget(unit: Unit) {
     if (!blocking(unit)) {
         return false;
     }
@@ -78,7 +79,7 @@ function validChillTarget(unit) {
     return true;
 }
 
-export function validTarget(unit, targetAction, condition) {
+export function validTarget(unit: Unit, targetAction: string, condition: any) {
     switch (targetAction) {
     case 'disrupt':
         return validChillTarget(unit);
@@ -92,27 +93,27 @@ export function validTarget(unit, targetAction, condition) {
     }
 };
 
-export function parseResources(resources) {
-    function count(type) {
-        return (resources.match(new RegExp(type, 'g')) || []).length;
+export function parseResources(resources: string | number): { [resource: string]: number } {
+    function count(str: string, type: string) {
+        return (str.match(new RegExp(type, 'g')) || []).length;
     }
 
     // Pure gold might be given as a number instead of a string.
     if (typeof resources === 'number') {
-        resources = new String(resources);
+        resources = String(resources);
     }
 
     return {
         gold: parseInt(resources) || 0,
-        green: count('G'),
-        blue: count('B'),
-        red: count('C'),
-        energy: count('H'),
-        attack: count('A'),
+        green: count(resources, 'G'),
+        blue: count(resources, 'B'),
+        red: count(resources, 'C'),
+        energy: count(resources, 'H'),
+        attack: count(resources, 'A'),
     };
 };
 
-export function targetingIsUseful(units, target) {
+export function targetingIsUseful(units: Unit[], target: Unit) {
     switch (units[0].targetAction) {
     case 'disrupt':
         // Bug in the game: Should be taking existing freeze into account

@@ -8,7 +8,6 @@
     "sourceMap": true,
     "outDir": "./lib/",
     "strict": true,
-    "noImplicitAny": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,

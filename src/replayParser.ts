@@ -4,12 +4,14 @@ import * as timsort from 'timsort';
 
 import constants from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
-import { GameState } from './gameState';
+import { GameState, Unit } from './gameState';
 import {
     deepClone, parseResources, targetingIsUseful, blocking, frozen, purchasedThisTurn, validTarget
 } from './util';
 
-const GAME_FORMATS = {
+const GAME_FORMATS: {
+    [code: number]: symbol;
+} = {
     200: constants.GAME_FORMAT_RANKED,
     201: constants.GAME_FORMAT_VERSUS_BOT,
     202: constants.GAME_FORMAT_VERSUS,
@@ -17,7 +19,9 @@ const GAME_FORMATS = {
     204: constants.GAME_FORMAT_CASUAL,
 };
 
-const END_CONDITIONS = {
+const END_CONDITIONS: {
+    [code: number]: symbol;
+} = {
     0: constants.END_CONDITION_RESIGN,
     1: constants.END_CONDITION_ELIMINATION,
     2: constants.END_CONDITION_DEFEATED,
@@ -29,7 +33,9 @@ const END_CONDITIONS = {
 const DRAW_END_CONDITIONS = [constants.END_CONDITION_REPETITION,
     constants.END_CONDITION_DOUBLE_DISCONNECT, constants.END_CONDITION_DRAW];
 
-const ACTION_TO_GAME_STATE_METHOD = {
+const ACTION_TO_GAME_STATE_METHOD: {
+    [action: string]: string;
+} = {
     [constants.ACTION_ASSIGN_DEFENSE.toString()]: 'assignDefense',
     [constants.ACTION_CANCEL_ASSIGN_DEFENSE.toString()]: 'cancelAssignDefense',
     [constants.ACTION_CANCEL_PURCHASE.toString()]: 'cancelPurchase',
@@ -38,7 +44,9 @@ const ACTION_TO_GAME_STATE_METHOD = {
     [constants.ACTION_CANCEL_ASSIGN_ATTACK.toString()]: 'cancelAssignAttack',
 };
 
-const ACTION_TO_GAME_STATE_UNIT_TEST_METHOD = {
+const ACTION_TO_GAME_STATE_UNIT_TEST_METHOD: {
+    [action: string]: string;
+} = {
     [constants.ACTION_ASSIGN_DEFENSE.toString()]: 'canAssignDefense',
     [constants.ACTION_CANCEL_ASSIGN_DEFENSE.toString()]: 'canCancelAssignDefense',
     [constants.ACTION_CANCEL_PURCHASE.toString()]: 'canCancelPurchase',
@@ -48,12 +56,12 @@ const ACTION_TO_GAME_STATE_UNIT_TEST_METHOD = {
     [constants.ACTION_CANCEL_USE_ABILITY.toString()]: 'canCancelUseAbility',
 };
 
-function sortShiftClickMatches(action, units) {
-    function sortUnits(rules, offset?: number) {
+function sortShiftClickMatches(action: symbol, units: Unit[]) {
+    function sortUnits(rules: string[], offset?: number) {
         if (offset !== undefined && offset < 0) {
             offset = undefined;
         }
-        timsort.sort(units, (a, b) => {
+        timsort.sort(units, (a: Unit, b: Unit) => {
             for (let i = 0; i < rules.length; i++) {
                 const key = rules[i].slice(1);
                 let aVal;
@@ -118,12 +126,12 @@ function sortShiftClickMatches(action, units) {
     case constants.ACTION_CANCEL_PURCHASE:
         break;
     default:
-        throw new Error(`Unsupported action: ${action}`);
+        throw new Error(`Unsupported action: ${String(action)}`);
     }
     return units;
 }
 
-function parseCommand(data) {
+function parseCommand(data: any) {
     if (data._type.startsWith('emote')) {
         if (!data.hasOwnProperty('_id') && !data.hasOwnProperty('_params')) {
             throw new DataError('Missing properties.', data);
@@ -191,7 +199,7 @@ function parseCommand(data) {
     }
 }
 
-function parseDeckAndInitInfo(data) {
+function parseDeckAndInitInfo(data: any) {
     if (!data.versionInfo) {
         throw new DataError('Version info missing.');
     }
@@ -219,7 +227,7 @@ function parseDeckAndInitInfo(data) {
     info.deck = deepClone(data.deckInfo.mergedDeck);
 
     // Renames are used even in new replays for some event units
-    const renames = info.deck.filter(x => x.UIName && x.UIName !== x.name).reduce((list, x) => {
+    const renames = info.deck.filter((x: any) => x.UIName && x.UIName !== x.name).reduce((list: any, x: any) => {
         list[x.name] = x.UIName;
         x.originalName = x.name;
         x.name = x.UIName;
@@ -227,7 +235,7 @@ function parseDeckAndInitInfo(data) {
         return list;
     }, {});
     if (Object.keys(renames).length > 0) {
-        info.deck.forEach(x => {
+        info.deck.forEach((x: any) => {
             ['resonate', 'goldResonate'].forEach(key => {
                 if (renames[x[key]]) {
                     x[key] = renames[x[key]];
@@ -237,7 +245,7 @@ function parseDeckAndInitInfo(data) {
             ['abilityScript', 'buyScript', 'beginOwnTurnScript']
                 .filter(key => x[key] && x[key].create)
                 .forEach(key => {
-                    x[key].create.forEach(rule => {
+                    x[key].create.forEach((rule: any) => {
                         if (renames[rule[0]]) {
                             rule[0] = renames[rule[0]];
                         }
@@ -245,7 +253,7 @@ function parseDeckAndInitInfo(data) {
                 });
 
             ['abilitySac', 'buySac'].filter(key => x[key]).forEach(key => {
-                x[key].forEach(rule => {
+                x[key].forEach((rule: any) => {
                     if (renames[rule[0]]) {
                         rule[0] = renames[rule[0]];
                     }
@@ -253,15 +261,15 @@ function parseDeckAndInitInfo(data) {
             });
         });
 
-        info.initCards.forEach(initCardsForPlayer => {
-            initCardsForPlayer.forEach(x => {
+        info.initCards.forEach((initCardsForPlayer: any) => {
+            initCardsForPlayer.forEach((x: any) => {
                 if (renames[x[1]]) {
                     x[1] = renames[x[1]];
                 }
             });
         });
 
-        info.baseSets.forEach(baseSetForPlayer => {
+        info.baseSets.forEach((baseSetForPlayer: any) => {
             for (let i = 0; i < baseSetForPlayer.length; i++) {
                 if (renames[baseSetForPlayer[i]]) {
                     baseSetForPlayer[i] = renames[baseSetForPlayer[i]];
@@ -269,7 +277,7 @@ function parseDeckAndInitInfo(data) {
             }
         });
 
-        info.randomSets.forEach(randomSetForPlayer => {
+        info.randomSets.forEach((randomSetForPlayer: any) => {
             for (let i = 0; i < randomSetForPlayer.length; i++) {
                 if (renames[randomSetForPlayer[i]]) {
                     randomSetForPlayer[i] = renames[randomSetForPlayer[i]];
@@ -294,7 +302,7 @@ export class ReplayParser extends EventEmitter {
     private endDefenseSnapshot: any = null;
     private endActionSnapshot: any = null;
 
-    constructor(replayData) {
+    constructor(replayData: any) {
         super();
 
         if (Buffer.isBuffer(replayData)) {
@@ -319,7 +327,7 @@ export class ReplayParser extends EventEmitter {
         };
     }
 
-    restoreSnapshot(snapshot) {
+    restoreSnapshot(snapshot: any) {
         this.inConfirmPhase = snapshot.inConfirmPhase;
         this.inDamagePhase = snapshot.inDamagePhase;
         this.targetingUnits = snapshot.targetingUnits.slice();
@@ -342,7 +350,7 @@ export class ReplayParser extends EventEmitter {
         this.combinedAction = false;
     }
 
-    getClickAction(unit) {
+    getClickAction(unit: Unit) {
         assert(this.targetingUnits.length === 0, 'In targeting mode.');
         assert(!this.inConfirmPhase, 'In confirm phase.');
 
@@ -379,7 +387,7 @@ export class ReplayParser extends EventEmitter {
 
         if (unit.player !== this.state.activePlayer) {
             if (unit.targetedBy) {
-                const sources = unit.targetedBy.map(x => this.state.units[x]);
+                const sources = unit.targetedBy.map((x: number) => this.state.units[x]);
                 for (let i = 0; i < sources.length; i++) {
                     const source = sources[i];
                     switch (source.targetAction) {
@@ -606,7 +614,7 @@ export class ReplayParser extends EventEmitter {
         this.emit('actionDone', action, data);
     }
 
-    runTargetClick(clickedUnit, shiftClick) {
+    runTargetClick(clickedUnit: Unit, shiftClick: boolean) {
         assert(!this.state.inDefensePhase, 'In defense phase.');
         assert(!this.inConfirmPhase, 'In confirm phase.');
         assert(this.combinedAction, 'Not combined action.');
@@ -701,7 +709,7 @@ export class ReplayParser extends EventEmitter {
         }
     }
 
-    runClickUnit(clickedUnit) {
+    runClickUnit(clickedUnit: Unit) {
         if (this.inConfirmPhase) {
             assert(!this.state.inDefensePhase, 'Overlapping defense and confirm phases.');
             if (this.targetingUnits.length > 0) {
@@ -747,7 +755,7 @@ export class ReplayParser extends EventEmitter {
 
         if (action === constants.ACTION_CANCEL_USE_ABILITY && unit.targetAction &&
             clickedUnit !== unit) {
-            clickedUnit.targetedBy.map(x => this.state.units[x]).forEach(x => {
+            clickedUnit.targetedBy.map((x: number) => this.state.units[x]).forEach((x: Unit) => {
                 this.runAction(action, { unit: x });
             });
             return;
@@ -756,7 +764,7 @@ export class ReplayParser extends EventEmitter {
         this.runAction(action, { unit });
     }
 
-    runShiftClickUnit(clickedUnit) {
+    runShiftClickUnit(clickedUnit: Unit) {
         if (this.inConfirmPhase) {
             assert(!this.state.inDefensePhase, 'Overlapping defense and confirm phases.');
             if (this.targetingUnits.length > 0) {
@@ -809,8 +817,8 @@ export class ReplayParser extends EventEmitter {
                 }
                 return true;
             });
-            targets.reduce((s, x) => s.concat(x.targetedBy), []).map(x => this.state.units[x])
-                .forEach(x => {
+            targets.reduce((s, x) => s.concat(x.targetedBy), []).map((x: number) => this.state.units[x])
+                .forEach((x: Unit) => {
                     this.runAction(constants.ACTION_CANCEL_USE_ABILITY, { unit: x });
                 });
             return;
@@ -870,7 +878,7 @@ export class ReplayParser extends EventEmitter {
         });
     }
 
-    runCommand(command, id) {
+    runCommand(command: symbol, id: number) {
         this.emit('command', command, id);
 
         switch (command) {
@@ -996,7 +1004,7 @@ export class ReplayParser extends EventEmitter {
         this.emit('initGame');
         this.initGame();
         this.emit('initGameDone');
-        this.getCommandList().forEach(x => {
+        this.getCommandList().forEach((x: any) => {
             const { command, id } = parseCommand(x);
             this.runCommand(command, id);
         });
@@ -1028,16 +1036,16 @@ export class ReplayParser extends EventEmitter {
         return GAME_FORMATS[this.data.format];
     }
 
-    getPlayerInfo(player) {
-        function formatRating(value) {
+    getPlayerInfo(player: number) {
+        function formatRating(value: number) {
             return parseFloat(value.toFixed(2));
         }
 
-        function formatTierPercent(value) {
+        function formatTierPercent(value: number) {
             return parseFloat((value * 100).toFixed(1));
         }
 
-        function getRating(obj) {
+        function getRating(obj: any) {
             if (!obj.displayRating && (!obj.score || !obj.score[23])) {
                 return null;
             }
@@ -1082,7 +1090,7 @@ export class ReplayParser extends EventEmitter {
         return info;
     }
 
-    getTimeControl(player) {
+    getTimeControl(player: number) {
         const timeInfo = this.data.timeInfo;
         if (!timeInfo) {
             throw new DataError('Time info missing.');
@@ -1109,21 +1117,21 @@ export class ReplayParser extends EventEmitter {
         };
     }
 
-    getDeck(player) {
+    getDeck(player: number) {
         const info = parseDeckAndInitInfo(this.data);
 
         const deck: any = {
-            baseSet: info.baseSets[player].map(x => Array.isArray(x) ? x[0] : x),
-            randomSet: info.randomSets[player].map(x => Array.isArray(x) ? x[0] : x),
+            baseSet: info.baseSets[player].map((x: any) => Array.isArray(x) ? x[0] : x),
+            randomSet: info.randomSets[player].map((x: any) => Array.isArray(x) ? x[0] : x),
         };
 
-        const customSupplies = {};
-        info.baseSets[player].forEach(x => {
+        const customSupplies: any = {};
+        info.baseSets[player].forEach((x: any) => {
             if (Array.isArray(x)) {
                 customSupplies[x[0]] = x[1];
             }
         });
-        info.randomSets[player].forEach(x => {
+        info.randomSets[player].forEach((x: any) => {
             if (Array.isArray(x)) {
                 customSupplies[x[0]] = x[1];
             }
@@ -1134,14 +1142,14 @@ export class ReplayParser extends EventEmitter {
         return deck;
     }
 
-    getStartPosition(player) {
+    getStartPosition(player: number) {
         const info = parseDeckAndInitInfo(this.data);
 
         const startPosition: any = {
             units: {},
         };
 
-        info.initCards[player].forEach(rule => {
+        info.initCards[player].forEach((rule: any) => {
             startPosition.units[rule[1]] = rule[0];
         });
 

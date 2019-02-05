@@ -8,15 +8,15 @@ import 'source-map-support/register';
 
 import { constants, ReplayParser, NotImplementedError } from '..';
 
-function loadSync(file) {
+function loadSync(file: string) {
     if (file.endsWith('.gz')) {
         return zlib.gunzipSync(fs.readFileSync(file));
     }
     return fs.readFileSync(file);
 }
 
-function listGameplayEvents(replayData, showCommands, showUndoPoints) {
-    function log(indentLevel, message) {
+function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoints: boolean) {
+    function log(indentLevel: number, message: string) {
         console.info(`${Array(indentLevel + 1).join('  ')}${message}`);
     }
 
@@ -38,17 +38,24 @@ function listGameplayEvents(replayData, showCommands, showUndoPoints) {
     console.info(`Start position P2: ${JSON.stringify(parser.getStartPosition(1))}`);
 
     if (showCommands) {
-        parser.on('command', (command, id) => {
+        parser.on('command', (command: symbol, id: string | undefined) => {
             if (id !== undefined) {
                 log(1, `${Symbol.keyFor(command)} ${id}`);
             } else {
-                log(1, Symbol.keyFor(command));
+                const typeName = Symbol.keyFor(command);
+                if (typeName === undefined) {
+                    throw new Error('Command symbol has no key.');
+                }
+                log(1, typeName);
             }
         });
     }
 
     parser.on('action', (type, data) => {
         const typeName = Symbol.keyFor(type);
+        if (typeName === undefined) {
+            throw new Error('Action symbol has no key.');
+        }
         if (data && data.target) {
             log(showCommands ? 2 : 1,
                 `Action: ${typeName} ${data.unit.name} -> ${data.target.name}`);

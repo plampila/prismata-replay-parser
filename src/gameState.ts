@@ -7,7 +7,11 @@ import {
     blocking, deepClone, frozen, purchasedThisTurn, validTarget, parseResources
 } from './util';
 
-const UNIT_ATTRIBUTE_SUPPORT = {
+export type Unit = any;
+
+const UNIT_ATTRIBUTE_SUPPORT: {
+    [attribute: string]: boolean;
+} = {
     // Basic info
     buildTime: true,
     charge: true, // Stamina
@@ -61,14 +65,18 @@ const UNIT_ATTRIBUTE_SUPPORT = {
     yOffset: true,
 };
 
-const RARITIES = {
+const RARITIES: {
+    [name: string]: number;
+} = {
     trinket: 20,
     normal: 10,
     rare: 4,
     legendary: 1,
 };
 
-const DEFAULT_PROPERTIES = {
+const DEFAULT_PROPERTIES: {
+    [property: string]: boolean | number;
+} = {
     abilityNetherfy: false,
     assignedAttack: 0,
     buildTime: 1,
@@ -90,7 +98,8 @@ export class GameState extends EventEmitter {
     public inDefensePhase: boolean | null = null;
     private supplies: any = null;
     private resources: any = null;
-    public units: any[] = [];
+    public units: Unit[] = [];
+    [method: string]: any; // FIXME: remove
 
     constructor() {
         super();
@@ -166,17 +175,17 @@ export class GameState extends EventEmitter {
             x.assignedAttack < x.toughness && (!x.delay || !x.purchased));
     }
 
-    targetedUnit(unit) {
+    targetedUnit(unit: Unit) {
         return this.slate().find(x => x.targetedBy && x.targetedBy.includes(this.unitId(unit)));
     }
 
-    unitId(unit) {
+    unitId(unit: Unit) {
         const id = this.units.indexOf(unit);
         return id >= 0 ? id : null;
     }
 
-    blueprintForName(name) {
-        return this.deck.find(x => x.name === name);
+    blueprintForName(name: string) {
+        return this.deck.find((x: any) => x.name === name);
     }
 
     // Internal
@@ -186,7 +195,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    requireValidUnit(unit, allowSacrificed) {
+    requireValidUnit(unit: Unit, allowSacrificed: boolean) {
         if (!unit) {
             throw new InvalidStateError('No unit given.');
         }
@@ -204,21 +213,21 @@ export class GameState extends EventEmitter {
         }
     }
 
-    requireFriendlyUnit(unit, allowSacrificed = false) {
+    requireFriendlyUnit(unit: Unit, allowSacrificed = false) {
         this.requireValidUnit(unit, allowSacrificed);
         if (unit.player !== this.activePlayer) {
             throw new InvalidStateError('Enemy unit.', unit);
         }
     }
 
-    requireEnemyUnit(unit, allowSacrificed = false) {
+    requireEnemyUnit(unit: Unit, allowSacrificed = false) {
         this.requireValidUnit(unit, allowSacrificed);
         if (unit.player === this.activePlayer) {
             throw new InvalidStateError('Friendly unit.', unit);
         }
     }
 
-    constructUnit(unitData, buildTime?: number, player: number | null = this.activePlayer, lifespan?: number) {
+    constructUnit(unitData: any, buildTime?: number, player: number | null = this.activePlayer, lifespan?: number) {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -249,7 +258,7 @@ export class GameState extends EventEmitter {
         return unit;
     }
 
-    destroyUnit(unit, reason) {
+    destroyUnit(unit: Unit, reason: string) {
         if (this.unitId(unit) === null) {
             throw new InvalidStateError('Tried to destroy non-added unit.', unit);
         }
@@ -260,8 +269,8 @@ export class GameState extends EventEmitter {
         this.emit('unitDestroyed', unit, reason);
     }
 
-    initPlayer(player, cards, baseSet, randomSet, infiniteSupplies) {
-        baseSet.concat(randomSet).forEach(name => {
+    initPlayer(player: number, cards: any, baseSet: any, randomSet: any, infiniteSupplies: boolean) {
+        baseSet.concat(randomSet).forEach((name: any) => {
             if (Array.isArray(name)) {
                 if (name[1] <= 0) {
                     throw new DataError('Invalid set supply.', name);
@@ -279,14 +288,14 @@ export class GameState extends EventEmitter {
             }
         });
 
-        cards.forEach(x => {
+        cards.forEach((x: any) => {
             for (let i = 0; i < x[0]; i++) {
                 this.constructUnit(this.blueprintForName(x[1]), 0, player);
             }
         });
     }
 
-    addAttack(amount, player: number | null = this.activePlayer) {
+    addAttack(amount: number, player: number | null = this.activePlayer) {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -301,7 +310,7 @@ export class GameState extends EventEmitter {
         const unit = this.breachAbsorber();
         if (unit) {
             if (unit.targetedBy) {
-                unit.targetedBy.map(id => this.units[id]).forEach(x => {
+                unit.targetedBy.map((id: number) => this.units[id]).forEach((x: Unit) => {
                     if (x.targetAction === 'snipe') {
                         this.emit('autoAction', 'cancelUseAbility', x);
                         this.cancelUseAbility(x);
@@ -316,7 +325,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    removeAttack(amount, player: number | null = this.activePlayer) {
+    removeAttack(amount: number, player: number | null = this.activePlayer) {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -328,7 +337,7 @@ export class GameState extends EventEmitter {
         this.resources[player].attack -= amount;
     }
 
-    addResources(resources, player: number | null = this.activePlayer) {
+    addResources(resources: string, player: number | null = this.activePlayer) {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -341,7 +350,7 @@ export class GameState extends EventEmitter {
         this.addAttack(parsed.attack);
     }
 
-    removeResources(resources, player: number | null = this.activePlayer) {
+    removeResources(resources: string, player: number | null = this.activePlayer) {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -354,7 +363,7 @@ export class GameState extends EventEmitter {
         this.removeAttack(parsed.attack);
     }
 
-    canRemoveResources(resources, player: number | null = this.activePlayer) {
+    canRemoveResources(resources: string, player: number | null = this.activePlayer) {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -365,7 +374,7 @@ export class GameState extends EventEmitter {
             .some(key => this.resources[player][key] - parsed[key] < 0);
     }
 
-    sacrificeList(name, player = this.activePlayer) {
+    sacrificeList(name: string, player = this.activePlayer) {
         const found = this.slate(player).filter(x => !x.sacrificed && x.name === name && !x.delay);
         found.reverse();
         // Must be a stable sort
@@ -373,11 +382,11 @@ export class GameState extends EventEmitter {
         return found;
     }
 
-    canSacrificeUnits(rules) {
+    canSacrificeUnits(rules: any[]) {
         return !rules.some(x => this.sacrificeList(x[0]).length < (x[1] || 1));
     }
 
-    sacrificeUnits(rules) {
+    sacrificeUnits(rules: any[]) {
         rules.forEach(x => {
             const name = x[0];
             const count = (x[1] || 1);
@@ -396,7 +405,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    cancelSacrificeUnits(rules) {
+    cancelSacrificeUnits(rules: any[]) {
         rules.forEach(x => {
             for (let i = 0; i < (x[1] || 1); i++) {
                 const found =
@@ -410,7 +419,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    runScript(unit, script) {
+    runScript(unit: Unit, script: any) {
         Object.keys(script).forEach(action => {
             switch (action) {
             case 'delay':
@@ -420,7 +429,7 @@ export class GameState extends EventEmitter {
                 this.addResources(script[action]);
                 break;
             case 'create':
-                script[action].forEach(x => {
+                script[action].forEach((x: any) => {
                     for (let i = 0; i < (x[2] || 1); i++) {
                         const constructed = this.constructUnit(this.blueprintForName(x[0]),
                             x[3] === undefined ? 1 : x[3],
@@ -439,7 +448,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    canReverseScript(script) {
+    canReverseScript(script: any) {
         return !Object.keys(script).some(action => {
             switch (action) {
             case 'delay':
@@ -455,7 +464,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    reverseScript(unit, script) {
+    reverseScript(unit: Unit, script: any) {
         Object.keys(script).forEach(action => {
             switch (action) {
             case 'delay':
@@ -465,7 +474,7 @@ export class GameState extends EventEmitter {
                 this.removeResources(script[action]);
                 break;
             case 'create':
-                script[action].forEach(x => {
+                script[action].forEach((x: any) => {
                     const targetPlayer = x[1] === 'own' ? this.activePlayer : this.villain();
                     for (let i = 0; i < (x[2] || 1); i++) {
                         const found = this.slate(targetPlayer).slice().reverse().find(y => {
@@ -593,7 +602,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    canAssignDefense(unit) {
+    canAssignDefense(unit: Unit) {
         if (!this.inDefensePhase) {
             throw new InvalidStateError('Not in defense phase.');
         }
@@ -611,7 +620,7 @@ export class GameState extends EventEmitter {
         return this.attack(this.villain()) > 0;
     }
 
-    assignDefense(unit) {
+    assignDefense(unit: Unit) {
         if (!this.canAssignDefense(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -620,7 +629,7 @@ export class GameState extends EventEmitter {
         this.removeAttack(unit.assignedAttack, this.villain());
     }
 
-    canCancelAssignDefense(unit) {
+    canCancelAssignDefense(unit: Unit) {
         if (!this.inDefensePhase) {
             throw new InvalidStateError('Not in defense phase.');
         }
@@ -632,7 +641,7 @@ export class GameState extends EventEmitter {
         return this.attack(this.villain()) > 0 || !this.absorber() || this.absorber() === unit;
     }
 
-    cancelAssignDefense(unit) {
+    cancelAssignDefense(unit: Unit) {
         if (!this.canCancelAssignDefense(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -654,7 +663,7 @@ export class GameState extends EventEmitter {
         this.runStartTurn();
     }
 
-    canPurchase(name) {
+    canPurchase(name: string) {
         this.requireActionPhase();
 
         const blueprint = this.blueprintForName(name);
@@ -677,7 +686,7 @@ export class GameState extends EventEmitter {
         return true;
     }
 
-    purchase(name) {
+    purchase(name: string) {
         if (!this.canPurchase(name)) {
             throw new InvalidStateError('Unavailable action.', name);
         }
@@ -708,7 +717,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    canCancelPurchase(unit) {
+    canCancelPurchase(unit: Unit) {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit);
         if (!purchasedThisTurn(unit)) {
@@ -718,7 +727,7 @@ export class GameState extends EventEmitter {
         return !unit.buyScript || this.canReverseScript(unit.buyScript);
     }
 
-    cancelPurchase(unit) {
+    cancelPurchase(unit: Unit) {
         if (!this.canCancelPurchase(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -734,7 +743,7 @@ export class GameState extends EventEmitter {
         unit.destroyed = true;
     }
 
-    canUseAbility(unit, target?) {
+    canUseAbility(unit: Unit, target?: Unit) {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit);
         if (!unit.abilityScript && !unit.targetAction) {
@@ -788,7 +797,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    useAbility(unit, target?) {
+    useAbility(unit: Unit, target?: Unit) {
         if (!this.canUseAbility(unit, target)) {
             throw new InvalidStateError('Unavailable action.', { unit, target });
         }
@@ -855,7 +864,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    canCancelUseAbility(unit) {
+    canCancelUseAbility(unit: Unit) {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit, true);
         if (!unit.abilityScript && !unit.targetAction) {
@@ -904,7 +913,7 @@ export class GameState extends EventEmitter {
         return true;
     }
 
-    cancelUseAbility(unit) {
+    cancelUseAbility(unit: Unit) {
         if (!this.canCancelUseAbility(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -984,7 +993,7 @@ export class GameState extends EventEmitter {
             });
     }
 
-    canAssignAttack(unit) {
+    canAssignAttack(unit: Unit) {
         this.requireActionPhase();
         this.requireEnemyUnit(unit);
         if (!this.defensesOverran() && !unit.undefendable) {
@@ -998,7 +1007,7 @@ export class GameState extends EventEmitter {
         return this.attack() >= (unit.fragile ? 1 : unit.toughness);
     }
 
-    assignAttack(unit) {
+    assignAttack(unit: Unit) {
         if (!this.canAssignAttack(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -1011,7 +1020,7 @@ export class GameState extends EventEmitter {
         unit.assignedAttack = amount;
     }
 
-    canCancelAssignAttack(unit) {
+    canCancelAssignAttack(unit: Unit) {
         this.requireActionPhase();
         this.requireEnemyUnit(unit, true);
         if (this.defensesOverran() && blocking(unit) && !frozen(unit)) {
@@ -1021,13 +1030,13 @@ export class GameState extends EventEmitter {
         return unit.assignedAttack > 0;
     }
 
-    cancelAssignAttack(unit) {
+    cancelAssignAttack(unit: Unit) {
         if (!this.canCancelAssignAttack(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
 
         if (unit.targetedBy) {
-            unit.targetedBy.map(id => this.units[id]).forEach(x => {
+            unit.targetedBy.map((id: number) => this.units[id]).forEach((x: Unit) => {
                 if (x.targetAction === 'snipe') {
                     this.emit('autoAction', 'cancelUseAbility', x);
                     this.cancelUseAbility(x);
@@ -1051,14 +1060,14 @@ export class GameState extends EventEmitter {
     }
 
     // Public
-    init(info) {
+    init(info: any) {
         if (this.turnNumber !== null) {
             throw new InvalidStateError('Already initialized.');
         }
 
         this.resources =
             [parseResources(info.initResources[0]), parseResources(info.initResources[1])];
-        this.deck = info.deck.map(x => Object.assign(Object.create(DEFAULT_PROPERTIES), x));
+        this.deck = info.deck.map((x: any) => Object.assign(Object.create(DEFAULT_PROPERTIES), x));
         this.supplies = [{}, {}];
         this.initPlayer(0, info.initCards[0], info.baseSets[0], info.randomSets[0],
             info.infiniteSupplies);
@@ -1084,7 +1093,7 @@ export class GameState extends EventEmitter {
         };
     }
 
-    restoreSnapshot(snapshot) {
+    restoreSnapshot(snapshot: any) {
         this.deck = deepClone(snapshot.deck);
         this.turnNumber = snapshot.turnNumber;
         this.activePlayer = snapshot.activePlayer;
