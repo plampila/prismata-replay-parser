@@ -1,8 +1,8 @@
-const constants = require('./lib/constants');
-const util = require('./lib/util');
-const GameState = require('./lib/gameState');
-const ReplayParser = require('./lib/replayParser');
-const { InvalidStateError, DataError, NotImplementedError } = require('./lib/customErrors');
+const constants = require('./constants');
+const util = require('./util');
+const GameState = require('./gameState');
+const ReplayParser = require('./replayParser');
+const { InvalidStateError, DataError, NotImplementedError } = require('./customErrors');
 
 module.exports.constants = constants;
 module.exports.util = util;
