@@ -4,6 +4,7 @@ import { strict as assert } from 'assert';
 import * as fs from 'fs';
 import minimist from 'minimist';
 import * as zlib from 'zlib';
+import 'source-map-support/register';
 
 import { constants, ReplayParser, NotImplementedError } from '..';
 

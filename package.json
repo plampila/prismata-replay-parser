@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "minimist": "^1.2.0",
+    "source-map-support": "^0.5.10",
     "timsort": "^0.3.0"
   },
   "devDependencies": {
