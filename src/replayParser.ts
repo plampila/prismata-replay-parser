@@ -50,7 +50,7 @@ const ACTION_TO_GAME_STATE_UNIT_TEST_METHOD = {
 
 function sortShiftClickMatches(action, units) {
     function sortUnits(rules, offset?: number) {
-        if (offset < 0) {
+        if (offset !== undefined && offset < 0) {
             offset = undefined;
         }
         timsort.sort(units, (a, b) => {
@@ -790,7 +790,7 @@ export class ReplayParser extends EventEmitter {
 
         if (!unit) {
             this.runAction(action);
-            return action;
+            return;
         }
 
         if (action === constants.ACTION_CANCEL_USE_ABILITY && unit.targetAction &&
@@ -866,6 +866,7 @@ export class ReplayParser extends EventEmitter {
                 return true;
             }
             this.runAction(action, { unit: x });
+            return false;
         });
     }
 

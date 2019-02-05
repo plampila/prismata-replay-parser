@@ -45,23 +45,23 @@ function validSnipeTarget(unit, condition) {
             if (!['Animus', 'Blastforge', 'Conduit'].includes(unit.name)) {
                 return true;
             }
-            break;
+            return false;
         case 'healthAtMost':
             if (unit.toughness - (unit.fragile ? unit.assignedAttack : 0) >
                     condition.healthAtMost) {
                 return true;
             }
-            break;
+            return false;
         case 'nameIn':
             if (!condition.nameIn.includes(unit.name)) {
                 return true;
             }
-            break;
+            return false;
         case 'isEngineerTempHack':
             if (unit.name !== 'Engineer') {
                 return true;
             }
-            break;
+            return false;
         default:
             throw new DataError('Unknown condition.', key);
         }

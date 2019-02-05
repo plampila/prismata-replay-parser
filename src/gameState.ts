@@ -98,19 +98,31 @@ export class GameState extends EventEmitter {
 
     // Helpers
     villain() {
+        if (this.activePlayer === null) {
+            throw new Error('Active player not set.');
+        }
         return (this.activePlayer + 1) % 2;
     }
 
-    attack(player = this.activePlayer) {
+    attack(player: number | null = this.activePlayer) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         return this.resources[player].attack;
     }
 
-    slate(player?: number) {
+    slate(player?: number | null) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         return this.units
             .filter(x => !x.destroyed && (player === undefined || x.player === player));
     }
 
-    blockers(player = this.activePlayer) {
+    blockers(player: number | null = this.activePlayer) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         return this.slate(player).filter(x => blocking(x) && !frozen(x));
     }
 
@@ -206,7 +218,10 @@ export class GameState extends EventEmitter {
         }
     }
 
-    constructUnit(unitData, buildTime?: number, player: number = this.activePlayer, lifespan?: number) {
+    constructUnit(unitData, buildTime?: number, player: number | null = this.activePlayer, lifespan?: number) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         Object.keys(unitData).forEach(key => {
             if (UNIT_ATTRIBUTE_SUPPORT[key] === undefined) {
                 throw new DataError('Unknown unit attribute.', key);
@@ -271,7 +286,10 @@ export class GameState extends EventEmitter {
         });
     }
 
-    addAttack(amount, player = this.activePlayer) {
+    addAttack(amount, player: number | null = this.activePlayer) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         assert(amount >= 0, 'Amount can not be negative.');
 
         if (amount === 0) {
@@ -298,7 +316,10 @@ export class GameState extends EventEmitter {
         }
     }
 
-    removeAttack(amount, player = this.activePlayer) {
+    removeAttack(amount, player: number | null = this.activePlayer) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         assert(amount >= 0, 'Amount can not be negative.');
 
         if (this.resources[player].attack < amount) {
@@ -307,7 +328,10 @@ export class GameState extends EventEmitter {
         this.resources[player].attack -= amount;
     }
 
-    addResources(resources, player = this.activePlayer) {
+    addResources(resources, player: number | null = this.activePlayer) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         assert(player === 0 || player === 1, 'Invalid player.');
 
         const parsed = parseResources(resources);
@@ -317,7 +341,10 @@ export class GameState extends EventEmitter {
         this.addAttack(parsed.attack);
     }
 
-    removeResources(resources, player = this.activePlayer) {
+    removeResources(resources, player: number | null = this.activePlayer) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         assert(player === 0 || player === 1, 'Invalid player.');
 
         const parsed = parseResources(resources);
@@ -327,7 +354,10 @@ export class GameState extends EventEmitter {
         this.removeAttack(parsed.attack);
     }
 
-    canRemoveResources(resources, player = this.activePlayer) {
+    canRemoveResources(resources, player: number | null = this.activePlayer) {
+        if (player === null) {
+            throw new Error('Player not set.');
+        }
         assert(player === 0 || player === 1, 'Invalid player.');
 
         const parsed = parseResources(resources);
@@ -409,7 +439,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    canReverseScript(unit, script) {
+    canReverseScript(script) {
         return !Object.keys(script).some(action => {
             switch (action) {
             case 'delay':
@@ -513,6 +543,9 @@ export class GameState extends EventEmitter {
     }
 
     runEndTurn() {
+        if (this.activePlayer === null) {
+            throw new Error('Active player not set.');
+        }
         this.resources[this.activePlayer].blue = 0;
         this.resources[this.activePlayer].red = 0;
         this.resources[this.activePlayer].energy = 0;
@@ -547,6 +580,9 @@ export class GameState extends EventEmitter {
     startTurn() {
         this.activePlayer = this.villain();
         if (this.activePlayer === 0) {
+            if (this.turnNumber === null) {
+                throw new Error('Turn number not set.');
+            }
             this.turnNumber++;
         }
         this.emit('turnStarted', this.turnNumber, this.activePlayer);
@@ -626,6 +662,9 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Blueprint not found.');
         }
 
+        if (this.activePlayer === null) {
+            throw new Error('Active player not set.');
+        }
         if (!this.supplies[this.activePlayer][blueprint.name]) {
             return false;
         }
@@ -646,6 +685,9 @@ export class GameState extends EventEmitter {
         const blueprint = this.blueprintForName(name);
         assert(blueprint !== null);
 
+        if (this.activePlayer === null) {
+            throw new Error('Active player not set.');
+        }
         this.supplies[this.activePlayer][blueprint.name]--;
         assert(this.supplies[this.activePlayer][blueprint.name] >= 0);
 
@@ -673,7 +715,7 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Not purchased this turn.', unit);
         }
 
-        return !unit.buyScript || this.canReverseScript(unit, unit.buyScript);
+        return !unit.buyScript || this.canReverseScript(unit.buyScript);
     }
 
     cancelPurchase(unit) {
@@ -823,7 +865,7 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Unit\'s ability not used.', unit);
         }
 
-        if (unit.abilityScript && !this.canReverseScript(unit, unit.abilityScript)) {
+        if (unit.abilityScript && !this.canReverseScript(unit.abilityScript)) {
             return false;
         }
 
