@@ -11,7 +11,7 @@ export function deepClone(o: any) {
         temp[key] = module.exports.deepClone(o[key]);
     });
     return temp;
-};
+}
 
 export function blocking(unit: Unit) {
     return (!unit.destroyed && !unit.sacrificed && !unit.delay && unit.defaultBlocking &&
@@ -26,11 +26,11 @@ export function purchasedThisTurn(unit: Unit) {
         return unit.delay === undefined;
     }
     return unit.delay === unit.buildTime;
-};
+}
 
 export function frozen(unit: Unit) {
     return !unit.destroyed && unit.disruption >= unit.toughness;
-};
+}
 
 function validSnipeTarget(unit: Unit, condition: any) {
     if (unit.delay && unit.purchased) {
@@ -91,7 +91,7 @@ export function validTarget(unit: Unit, targetAction: string, condition: any) {
     default:
         throw new DataError('Unknown target action.', targetAction);
     }
-};
+}
 
 export function parseResources(resources: string | number): { [resource: string]: number } {
     function count(str: string, type: string) {
@@ -104,14 +104,14 @@ export function parseResources(resources: string | number): { [resource: string]
     }
 
     return {
-        gold: parseInt(resources) || 0,
+        gold: parseInt(resources, 10) || 0,
         green: count(resources, 'G'),
         blue: count(resources, 'B'),
         red: count(resources, 'C'),
         energy: count(resources, 'H'),
         attack: count(resources, 'A'),
     };
-};
+}
 
 export function targetingIsUseful(units: Unit[], target: Unit) {
     switch (units[0].targetAction) {
@@ -123,4 +123,4 @@ export function targetingIsUseful(units: Unit[], target: Unit) {
     default:
         throw new DataError('Unknown target action.', units[0].targetAction);
     }
-};
+}

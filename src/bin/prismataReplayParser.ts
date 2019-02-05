@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
+// tslint:disable:no-console
+
 import { strict as assert } from 'assert';
 import * as fs from 'fs';
 import minimist from 'minimist';
+import sourceMapSupport from 'source-map-support';
 import * as zlib from 'zlib';
-import 'source-map-support/register';
 
-import { constants, ReplayParser, NotImplementedError } from '..';
+import { constants, NotImplementedError, ReplayParser } from '..';
 
 function loadSync(file: string) {
     if (file.endsWith('.gz')) {
@@ -74,15 +76,15 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
         });
     }
 
-    state.on('turnStarted', (number, player) => {
-        log(0, `P${player + 1} turn ${number} started.`);
+    state.on('turnStarted', (turnNumber, player) => {
+        log(0, `P${player + 1} turn ${turnNumber} started.`);
     });
 
     state.on('unitDestroyed', (unit, reason) => {
         log(showCommands ? 3 : 2, `Unit destroyed (${reason}): ${unit.name}`);
     });
 
-    state.on('unitConstructed', (unit) => {
+    state.on('unitConstructed', unit => {
         log(showCommands ? 3 : 2, `Unit constructed: ${unit.name}`);
     });
 
@@ -132,6 +134,7 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
 }
 
 async function main() {
+    sourceMapSupport.install();
     const argv = minimist(process.argv.slice(2), { boolean: ['test', 'v', 'c', 'u'] });
 
     if (argv._.length === 0) {
@@ -140,12 +143,12 @@ async function main() {
 
     let errorCount = 0;
     let notImplementedCount = 0;
-    for (let i = 0; i < argv._.length; i++) {
+    for (const filename of argv._) {
         let data;
         try {
-            data = loadSync(argv._[i]);
+            data = loadSync(filename);
         } catch (e) {
-            console.error(`Failed to load replay data ${argv._[i]}: ${e}`);
+            console.error(`Failed to load replay data ${filename}: ${e}`);
             break;
         }
         if (argv.test) {
@@ -172,14 +175,14 @@ async function main() {
                     notImplementedCount++;
                 }
                 if (argv.v) {
-                    console.debug(`${argv._[i]}: ${e}`);
+                    console.debug(`${filename}: ${e}`);
                 }
             }
         } else {
             try {
                 listGameplayEvents(data, argv.c, argv.u);
             } catch (e) {
-                console.error(`${argv._[i]}:`, e);
+                console.error(`${filename}:`, e);
                 if (e.data) {
                     if (e.data.name) {
                         console.error(`Data: Unit: ${e.data.name} ${JSON.stringify(e.data)}`);

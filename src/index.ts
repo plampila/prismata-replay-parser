@@ -1,8 +1,8 @@
 import constants from './constants';
-import * as util from './util';
+import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { GameState } from './gameState';
 import { ReplayParser } from './replayParser';
-import { InvalidStateError, DataError, NotImplementedError } from './customErrors';
+import * as util from './util';
 
 export {
     constants,

@@ -6,7 +6,7 @@ import constants from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { GameState, Unit } from './gameState';
 import {
-    deepClone, parseResources, targetingIsUseful, blocking, frozen, purchasedThisTurn, validTarget
+    blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget,
 } from './util';
 
 const GAME_FORMATS: {
@@ -62,16 +62,16 @@ function sortShiftClickMatches(action: symbol, units: Unit[]) {
             offset = undefined;
         }
         timsort.sort(units, (a: Unit, b: Unit) => {
-            for (let i = 0; i < rules.length; i++) {
-                const key = rules[i].slice(1);
+            for (const rule of rules) {
+                const key = rule.slice(1);
                 let aVal;
                 let bVal;
                 if (key === 'delay-1') {
-                    aVal = a['delay'] ? a['delay'] - 1 : 0;
-                    bVal = b['delay'] ? b['delay'] - 1 : 0;
+                    aVal = a.delay ? a.delay - 1 : 0;
+                    bVal = b.delay ? b.delay - 1 : 0;
                 } else if (key === 'lifespan+delay') {
-                    aVal = a['lifespan'] ? a['lifespan'] + (a['delay'] || 0) : 0;
-                    bVal = b['lifespan'] ? b['lifespan'] + (b['delay'] || 0) : 0;
+                    aVal = a.lifespan ? a.lifespan + (a.delay || 0) : 0;
+                    bVal = b.lifespan ? b.lifespan + (b.delay || 0) : 0;
                 } else {
                     if (key === 'lifespan') {
                         aVal = a[key] || Infinity;
@@ -84,7 +84,7 @@ function sortShiftClickMatches(action: symbol, units: Unit[]) {
                 if (aVal === bVal) {
                     continue;
                 }
-                if (rules[i][0] === '>') {
+                if (rule[0] === '>') {
                     return bVal - aVal;
                 }
                 return aVal - bVal;
@@ -290,8 +290,9 @@ function parseDeckAndInitInfo(data: any) {
 }
 
 export class ReplayParser extends EventEmitter {
-    private readonly data: any;
     public readonly state: GameState = new GameState();
+
+    private readonly data: any;
     private inConfirmPhase: boolean = false;
     private inDamagePhase: boolean = false;
     private targetingUnits: any[] = [];
@@ -316,7 +317,7 @@ export class ReplayParser extends EventEmitter {
         }
     }
 
-    getSnapshot() {
+    private getSnapshot() {
         return {
             inConfirmPhase: this.inConfirmPhase,
             inDamagePhase: this.inDamagePhase,
@@ -327,7 +328,7 @@ export class ReplayParser extends EventEmitter {
         };
     }
 
-    restoreSnapshot(snapshot: any) {
+    private restoreSnapshot(snapshot: any) {
         this.inConfirmPhase = snapshot.inConfirmPhase;
         this.inDamagePhase = snapshot.inDamagePhase;
         this.targetingUnits = snapshot.targetingUnits.slice();
@@ -336,21 +337,21 @@ export class ReplayParser extends EventEmitter {
         this.state.restoreSnapshot(snapshot.stateSnapshot);
     }
 
-    addUndoSnapshot() {
+    private addUndoSnapshot() {
         this.stopCombinedAction();
         this.emit('undoSnapshot');
         this.undoSnapshots.push(this.getSnapshot());
     }
 
-    startCombinedAction() {
+    private startCombinedAction() {
         this.combinedAction = true;
     }
 
-    stopCombinedAction() {
+    private stopCombinedAction() {
         this.combinedAction = false;
     }
 
-    getClickAction(unit: Unit) {
+    private getClickAction(unit: Unit) {
         assert(this.targetingUnits.length === 0, 'In targeting mode.');
         assert(!this.inConfirmPhase, 'In confirm phase.');
 
@@ -388,8 +389,7 @@ export class ReplayParser extends EventEmitter {
         if (unit.player !== this.state.activePlayer) {
             if (unit.targetedBy) {
                 const sources = unit.targetedBy.map((x: number) => this.state.units[x]);
-                for (let i = 0; i < sources.length; i++) {
-                    const source = sources[i];
+                for (const source of sources) {
                     switch (source.targetAction) {
                     case 'disrupt':
                         if (!unit.sacrificed) {
@@ -490,7 +490,7 @@ export class ReplayParser extends EventEmitter {
         return { action: constants.ACTION_USE_ABILITY, unit };
     }
 
-    runAction(action: symbol, data?: any) {
+    private runAction(action: symbol, data?: any) {
         if (!action) {
             throw new Error('No action given.');
         }
@@ -614,7 +614,7 @@ export class ReplayParser extends EventEmitter {
         this.emit('actionDone', action, data);
     }
 
-    runTargetClick(clickedUnit: Unit, shiftClick: boolean) {
+    private runTargetClick(clickedUnit: Unit, shiftClick: boolean) {
         assert(!this.state.inDefensePhase, 'In defense phase.');
         assert(!this.inConfirmPhase, 'In confirm phase.');
         assert(this.combinedAction, 'Not combined action.');
@@ -682,7 +682,7 @@ export class ReplayParser extends EventEmitter {
                 }
                 this.runAction(constants.ACTION_USE_ABILITY, {
                     unit: this.targetingUnits[i],
-                    target: target,
+                    target,
                 });
             }
             this.targetingUnits.splice(0, i);
@@ -709,7 +709,7 @@ export class ReplayParser extends EventEmitter {
         }
     }
 
-    runClickUnit(clickedUnit: Unit) {
+    private runClickUnit(clickedUnit: Unit) {
         if (this.inConfirmPhase) {
             assert(!this.state.inDefensePhase, 'Overlapping defense and confirm phases.');
             if (this.targetingUnits.length > 0) {
@@ -764,7 +764,7 @@ export class ReplayParser extends EventEmitter {
         this.runAction(action, { unit });
     }
 
-    runShiftClickUnit(clickedUnit: Unit) {
+    private runShiftClickUnit(clickedUnit: Unit) {
         if (this.inConfirmPhase) {
             assert(!this.state.inDefensePhase, 'Overlapping defense and confirm phases.');
             if (this.targetingUnits.length > 0) {
@@ -878,7 +878,7 @@ export class ReplayParser extends EventEmitter {
         });
     }
 
-    runCommand(command: symbol, id: number) {
+    private runCommand(command: symbol, id: number) {
         this.emit('command', command, id);
 
         switch (command) {
@@ -984,11 +984,11 @@ export class ReplayParser extends EventEmitter {
         this.emit('commandDone', command, id);
     }
 
-    getCommandList() {
+    private getCommandList() {
         return this.data.commandInfo.commandList;
     }
 
-    initGame() {
+    private initGame() {
         this.state.init(parseDeckAndInitInfo(this.data));
 
         this.undoSnapshots = [];
@@ -1000,7 +1000,7 @@ export class ReplayParser extends EventEmitter {
 
     // Publicly usable methods
 
-    run() {
+    public run() {
         this.emit('initGame');
         this.initGame();
         this.emit('initGameDone');
@@ -1010,33 +1010,33 @@ export class ReplayParser extends EventEmitter {
         });
     }
 
-    getCode() {
+    public getCode() {
         return this.data.code;
     }
 
-    getStartTime() {
+    public getStartTime() {
         return new Date(this.data.startTime * 1000);
     }
 
-    getEndTime() {
+    public getEndTime() {
         return new Date(this.data.endTime * 1000);
     }
 
-    getServerVersion() {
+    public getServerVersion() {
         if (!this.data.versionInfo) {
             throw new DataError('Version info missing.');
         }
         return this.data.versionInfo.serverVersion;
     }
 
-    getGameFormat() {
+    public getGameFormat() {
         if (GAME_FORMATS[this.data.format] === undefined) {
             throw new DataError(`Unknown game format: ${this.data.format}`);
         }
         return GAME_FORMATS[this.data.format];
     }
 
-    getPlayerInfo(player: number) {
+    public getPlayerInfo(player: number) {
         function formatRating(value: number) {
             return parseFloat(value.toFixed(2));
         }
@@ -1090,7 +1090,7 @@ export class ReplayParser extends EventEmitter {
         return info;
     }
 
-    getTimeControl(player: number) {
+    public getTimeControl(player: number) {
         const timeInfo = this.data.timeInfo;
         if (!timeInfo) {
             throw new DataError('Time info missing.');
@@ -1117,7 +1117,7 @@ export class ReplayParser extends EventEmitter {
         };
     }
 
-    getDeck(player: number) {
+    public getDeck(player: number) {
         const info = parseDeckAndInitInfo(this.data);
 
         const deck: any = {
@@ -1142,7 +1142,7 @@ export class ReplayParser extends EventEmitter {
         return deck;
     }
 
-    getStartPosition(player: number) {
+    public getStartPosition(player: number) {
         const info = parseDeckAndInitInfo(this.data);
 
         const startPosition: any = {
@@ -1160,7 +1160,7 @@ export class ReplayParser extends EventEmitter {
         return startPosition;
     }
 
-    getResult() {
+    public getResult() {
         if (this.data.result === undefined || this.data.result === null) {
             throw new DataError('Missing result.');
         }
