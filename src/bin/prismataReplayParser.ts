@@ -10,15 +10,15 @@ import * as zlib from 'zlib';
 
 import { constants, NotImplementedError, ReplayParser } from '..';
 
-function loadSync(file: string) {
+function loadSync(file: string): Buffer {
     if (file.endsWith('.gz')) {
         return zlib.gunzipSync(fs.readFileSync(file));
     }
     return fs.readFileSync(file);
 }
 
-function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoints: boolean) {
-    function log(indentLevel: number, message: string) {
+function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoints: boolean): void {
+    function log(indentLevel: number, message: string): void {
         console.info(`${Array(indentLevel + 1).join('  ')}${message}`);
     }
 
@@ -101,17 +101,23 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     const result = parser.getResult();
     switch (result.endCondition) {
     case constants.END_CONDITION_RESIGN:
-        assert(result.winner !== null);
+        if (result.winner === null) {
+            throw new Error('Winner not set.');
+        }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by resignation.`);
         break;
     case constants.END_CONDITION_ELIMINATION:
-        assert(result.winner !== null);
+        if (result.winner === null) {
+            throw new Error('Winner not set.');
+        }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by elimination.`);
         break;
     case constants.END_CONDITION_DEFEATED:
-        assert(result.winner !== null);
+        if (result.winner === null) {
+            throw new Error('Winner not set.');
+        }
         console.info(`P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1}.`);
         break;
     case constants.END_CONDITION_REPETITION:
@@ -119,7 +125,9 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
         console.info('Game ended in a draw by repetition.');
         break;
     case constants.END_CONDITION_DISCONNECT:
-        assert(result.winner !== null);
+        if (result.winner === null) {
+            throw new Error('Winner not set.');
+        }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by disconnect.`);
         break;
@@ -133,7 +141,7 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     }
 }
 
-async function main() {
+async function main(): Promise<void> {
     sourceMapSupport.install();
     const argv = minimist(process.argv.slice(2), { boolean: ['test', 'v', 'c', 'u'] });
 

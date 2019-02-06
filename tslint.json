@@ -14,7 +14,17 @@
         "arrow-parens": {
             "options": "ban-single-arg-parens"
         },
-        "member-ordering": false
+        "member-ordering": false,
+        "typedef": {
+            "options": [
+                "array-destructuring",
+                "call-signature",
+                "member-variable-declaration",
+                "object-destructuring",
+                "parameter",
+                "property-declaration"
+            ]
+        }
     },
     "rulesDirectory": []
 }

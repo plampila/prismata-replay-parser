@@ -8,6 +8,11 @@ import {
 } from './util';
 
 export type Unit = any;
+export type Blueprint = any;
+export type Deck = any;
+export type Supplies = any;
+export type Resources = any;
+export type Player = number | null;
 
 const UNIT_ATTRIBUTE_SUPPORT: {
     [attribute: string]: boolean;
@@ -91,13 +96,23 @@ const DEFAULT_PROPERTIES: {
     undefendable: false,
 };
 
+export interface IGameStateSnapshot {
+    deck: Deck;
+    turnNumber: number | null;
+    activePlayer: Player;
+    inDefensePhase: boolean | null;
+    supplies: Supplies;
+    resources: Resources;
+    units: Unit[];
+}
+
 export class GameState extends EventEmitter {
-    public deck: any = null;
+    public deck: Deck | null = null;
     private turnNumber: number | null = null;
-    public activePlayer: number | null = null;
+    public activePlayer: Player = null;
     public inDefensePhase: boolean | null = null;
-    private supplies: any = null;
-    private resources: any = null;
+    private supplies: Supplies = null;
+    private resources: Resources = null;
     public units: Unit[] = [];
     [method: string]: any; // FIXME: remove
 
@@ -106,21 +121,21 @@ export class GameState extends EventEmitter {
     }
 
     // Helpers
-    public villain() {
+    public villain(): Player {
         if (this.activePlayer === null) {
             throw new Error('Active player not set.');
         }
         return (this.activePlayer + 1) % 2;
     }
 
-    public attack(player: number | null = this.activePlayer) {
+    public attack(player: Player = this.activePlayer): number {
         if (player === null) {
             throw new Error('Player not set.');
         }
         return this.resources[player].attack;
     }
 
-    public slate(player?: number | null) {
+    public slate(player?: Player): Unit[] {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -128,19 +143,19 @@ export class GameState extends EventEmitter {
             .filter(x => !x.destroyed && (player === undefined || x.player === player));
     }
 
-    public blockers(player: number | null = this.activePlayer) {
+    public blockers(player: Player = this.activePlayer): Unit[] {
         if (player === null) {
             throw new Error('Player not set.');
         }
         return this.slate(player).filter(x => blocking(x) && !frozen(x));
     }
 
-    public absorber() {
+    public absorber(): Unit | null {
         return this.slate(this.activePlayer)
             .find(x => blocking(x) && x.assignedAttack > 0 && x.assignedAttack < x.toughness);
     }
 
-    public breachAbsorber() {
+    public breachAbsorber(): Unit | null {
         const candidates = this.slate(this.villain()).filter(x => !blocking(x) &&
             x.assignedAttack > 0 && x.assignedAttack < x.toughness);
         if (candidates.length === 2 && candidates[0].sacrificed) {
@@ -149,11 +164,11 @@ export class GameState extends EventEmitter {
         return candidates.length > 0 ? candidates[0] : null;
     }
 
-    public defensesOverran() {
+    public defensesOverran(): boolean {
         return !this.blockers(this.villain()).some(x => x.assignedAttack < x.toughness);
     }
 
-    public canOverrunDefenses() {
+    public canOverrunDefenses(): boolean {
         this.requireActionPhase();
         if (this.defensesOverran()) {
             throw new InvalidStateError('Defenses already overran.');
@@ -165,37 +180,37 @@ export class GameState extends EventEmitter {
         return this.attack() >= Math.max(totalDefense, 1);
     }
 
-    public breaching() {
+    public breaching(): boolean {
         return this.slate(this.villain())
             .some(x => !x.sacrificed && !blocking(x) && x.assignedAttack);
     }
 
-    public canOverKill() {
+    public canOverKill(): boolean {
         return !this.slate(this.villain()).some(x => !x.sacrificed &&
             x.assignedAttack < x.toughness && (!x.delay || !x.purchased));
     }
 
-    private targetedUnit(unit: Unit) {
+    private targetedUnit(unit: Unit): Unit {
         return this.slate().find(x => x.targetedBy && x.targetedBy.includes(this.unitId(unit)));
     }
 
-    private unitId(unit: Unit) {
+    private unitId(unit: Unit): number | null {
         const id = this.units.indexOf(unit);
         return id >= 0 ? id : null;
     }
 
-    private blueprintForName(name: string) {
+    private blueprintForName(name: string): Blueprint {
         return this.deck.find((x: any) => x.name === name);
     }
 
     // Internal
-    private requireActionPhase() {
+    private requireActionPhase(): void {
         if (this.inDefensePhase) {
             throw new InvalidStateError('Not in action phase.');
         }
     }
 
-    private requireValidUnit(unit: Unit, allowSacrificed: boolean) {
+    private requireValidUnit(unit: Unit, allowSacrificed: boolean): void {
         if (!unit) {
             throw new InvalidStateError('No unit given.');
         }
@@ -213,22 +228,22 @@ export class GameState extends EventEmitter {
         }
     }
 
-    private requireFriendlyUnit(unit: Unit, allowSacrificed = false) {
+    private requireFriendlyUnit(unit: Unit, allowSacrificed: boolean = false): void {
         this.requireValidUnit(unit, allowSacrificed);
         if (unit.player !== this.activePlayer) {
             throw new InvalidStateError('Enemy unit.', unit);
         }
     }
 
-    private requireEnemyUnit(unit: Unit, allowSacrificed = false) {
+    private requireEnemyUnit(unit: Unit, allowSacrificed: boolean = false): void {
         this.requireValidUnit(unit, allowSacrificed);
         if (unit.player === this.activePlayer) {
             throw new InvalidStateError('Friendly unit.', unit);
         }
     }
 
-    private constructUnit(unitData: any, buildTime?: number, player: number | null = this.activePlayer,
-                          lifespan?: number) {
+    private constructUnit(unitData: any, buildTime?: number, player: Player = this.activePlayer,
+                          lifespan?: number): Unit {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -259,7 +274,7 @@ export class GameState extends EventEmitter {
         return unit;
     }
 
-    private destroyUnit(unit: Unit, reason: string) {
+    private destroyUnit(unit: Unit, reason: string): void {
         if (this.unitId(unit) === null) {
             throw new InvalidStateError('Tried to destroy non-added unit.', unit);
         }
@@ -270,7 +285,7 @@ export class GameState extends EventEmitter {
         this.emit('unitDestroyed', unit, reason);
     }
 
-    private initPlayer(player: number, cards: any, baseSet: any, randomSet: any, infiniteSupplies: boolean) {
+    private initPlayer(player: number, cards: any, baseSet: any, randomSet: any, infiniteSupplies: boolean): void {
         baseSet.concat(randomSet).forEach((name: any) => {
             if (Array.isArray(name)) {
                 if (name[1] <= 0) {
@@ -296,7 +311,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private addAttack(amount: number, player: number | null = this.activePlayer) {
+    private addAttack(amount: number, player: Player = this.activePlayer): void {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -326,7 +341,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    private removeAttack(amount: number, player: number | null = this.activePlayer) {
+    private removeAttack(amount: number, player: Player = this.activePlayer): void {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -338,7 +353,7 @@ export class GameState extends EventEmitter {
         this.resources[player].attack -= amount;
     }
 
-    private addResources(resources: string, player: number | null = this.activePlayer) {
+    private addResources(resources: string, player: Player = this.activePlayer): void {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -351,7 +366,7 @@ export class GameState extends EventEmitter {
         this.addAttack(parsed.attack);
     }
 
-    private removeResources(resources: string, player: number | null = this.activePlayer) {
+    private removeResources(resources: string, player: Player = this.activePlayer): void {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -364,7 +379,7 @@ export class GameState extends EventEmitter {
         this.removeAttack(parsed.attack);
     }
 
-    private canRemoveResources(resources: string, player: number | null = this.activePlayer) {
+    private canRemoveResources(resources: string, player: Player = this.activePlayer): boolean {
         if (player === null) {
             throw new Error('Player not set.');
         }
@@ -375,7 +390,7 @@ export class GameState extends EventEmitter {
             .some(key => this.resources[player][key] - parsed[key] < 0);
     }
 
-    private sacrificeList(name: string, player = this.activePlayer) {
+    private sacrificeList(name: string, player: Player = this.activePlayer): Unit[] {
         const found = this.slate(player).filter(x => !x.sacrificed && x.name === name && !x.delay);
         found.reverse();
         // Must be a stable sort
@@ -383,11 +398,11 @@ export class GameState extends EventEmitter {
         return found;
     }
 
-    private canSacrificeUnits(rules: any[]) {
+    private canSacrificeUnits(rules: any[]): boolean {
         return !rules.some(x => this.sacrificeList(x[0]).length < (x[1] || 1));
     }
 
-    private sacrificeUnits(rules: any[]) {
+    private sacrificeUnits(rules: any[]): void {
         rules.forEach(x => {
             const name = x[0];
             const count = (x[1] || 1);
@@ -406,7 +421,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private cancelSacrificeUnits(rules: any[]) {
+    private cancelSacrificeUnits(rules: any[]): void {
         rules.forEach(x => {
             for (let i = 0; i < (x[1] || 1); i++) {
                 const found =
@@ -420,7 +435,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private runScript(unit: Unit, script: any) {
+    private runScript(unit: Unit, script: any): void {
         Object.keys(script).forEach(action => {
             switch (action) {
             case 'delay':
@@ -449,7 +464,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private canReverseScript(script: any) {
+    private canReverseScript(script: any): boolean {
         return !Object.keys(script).some(action => {
             switch (action) {
             case 'delay':
@@ -465,7 +480,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private reverseScript(unit: Unit, script: any) {
+    private reverseScript(unit: Unit, script: any): void {
         Object.keys(script).forEach(action => {
             switch (action) {
             case 'delay':
@@ -500,7 +515,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private runStartTurn() {
+    private runStartTurn(): void {
         this.slate(this.activePlayer).forEach(unit => {
             if (unit.assignedAttack) {
                 if (unit.assignedAttack >= unit.toughness) {
@@ -552,7 +567,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private runEndTurn() {
+    private runEndTurn(): void {
         if (this.activePlayer === null) {
             throw new Error('Active player not set.');
         }
@@ -587,7 +602,7 @@ export class GameState extends EventEmitter {
     }
 
     // Actions
-    public startTurn() {
+    public startTurn(): void {
         this.activePlayer = this.villain();
         if (this.activePlayer === 0) {
             if (this.turnNumber === null) {
@@ -603,7 +618,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    public canAssignDefense(unit: Unit) {
+    public canAssignDefense(unit: Unit): boolean {
         if (!this.inDefensePhase) {
             throw new InvalidStateError('Not in defense phase.');
         }
@@ -621,7 +636,7 @@ export class GameState extends EventEmitter {
         return this.attack(this.villain()) > 0;
     }
 
-    public assignDefense(unit: Unit) {
+    public assignDefense(unit: Unit): void {
         if (!this.canAssignDefense(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -630,7 +645,7 @@ export class GameState extends EventEmitter {
         this.removeAttack(unit.assignedAttack, this.villain());
     }
 
-    public canCancelAssignDefense(unit: Unit) {
+    public canCancelAssignDefense(unit: Unit): boolean {
         if (!this.inDefensePhase) {
             throw new InvalidStateError('Not in defense phase.');
         }
@@ -642,7 +657,7 @@ export class GameState extends EventEmitter {
         return this.attack(this.villain()) > 0 || !this.absorber() || this.absorber() === unit;
     }
 
-    public cancelAssignDefense(unit: Unit) {
+    public cancelAssignDefense(unit: Unit): void {
         if (!this.canCancelAssignDefense(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -651,7 +666,7 @@ export class GameState extends EventEmitter {
         delete unit.assignedAttack;
     }
 
-    public endDefense() {
+    public endDefense(): void {
         if (!this.inDefensePhase) {
             throw new InvalidStateError('Not in defense phase.');
         }
@@ -664,7 +679,7 @@ export class GameState extends EventEmitter {
         this.runStartTurn();
     }
 
-    public canPurchase(name: string) {
+    public canPurchase(name: string): boolean {
         this.requireActionPhase();
 
         const blueprint = this.blueprintForName(name);
@@ -687,7 +702,7 @@ export class GameState extends EventEmitter {
         return true;
     }
 
-    public purchase(name: string) {
+    public purchase(name: string): void {
         if (!this.canPurchase(name)) {
             throw new InvalidStateError('Unavailable action.', name);
         }
@@ -718,7 +733,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    public canCancelPurchase(unit: Unit) {
+    public canCancelPurchase(unit: Unit): boolean {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit);
         if (!purchasedThisTurn(unit)) {
@@ -728,7 +743,7 @@ export class GameState extends EventEmitter {
         return !unit.buyScript || this.canReverseScript(unit.buyScript);
     }
 
-    public cancelPurchase(unit: Unit) {
+    public cancelPurchase(unit: Unit): void {
         if (!this.canCancelPurchase(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -744,7 +759,7 @@ export class GameState extends EventEmitter {
         unit.destroyed = true;
     }
 
-    public canUseAbility(unit: Unit, target?: Unit) {
+    public canUseAbility(unit: Unit, target?: Unit): boolean {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit);
         if (!unit.abilityScript && !unit.targetAction) {
@@ -798,7 +813,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    public useAbility(unit: Unit, target?: Unit) {
+    public useAbility(unit: Unit, target?: Unit): void {
         if (!this.canUseAbility(unit, target)) {
             throw new InvalidStateError('Unavailable action.', { unit, target });
         }
@@ -865,7 +880,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    public canCancelUseAbility(unit: Unit) {
+    public canCancelUseAbility(unit: Unit): boolean {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit, true);
         if (!unit.abilityScript && !unit.targetAction) {
@@ -914,7 +929,7 @@ export class GameState extends EventEmitter {
         return true;
     }
 
-    public cancelUseAbility(unit: Unit) {
+    public cancelUseAbility(unit: Unit): void {
         if (!this.canCancelUseAbility(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -964,7 +979,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    public overrunDefenses() {
+    public overrunDefenses(): void {
         this.requireActionPhase();
         if (this.defensesOverran()) {
             throw new InvalidStateError('Defenses already overran.');
@@ -980,7 +995,7 @@ export class GameState extends EventEmitter {
             });
     }
 
-    public cancelOverrunDefenses() {
+    public cancelOverrunDefenses(): void {
         this.requireActionPhase();
         if (!this.defensesOverran()) {
             throw new InvalidStateError('Defenses not overran.');
@@ -994,7 +1009,7 @@ export class GameState extends EventEmitter {
             });
     }
 
-    public canAssignAttack(unit: Unit) {
+    public canAssignAttack(unit: Unit): boolean {
         this.requireActionPhase();
         this.requireEnemyUnit(unit);
         if (!this.defensesOverran() && !unit.undefendable) {
@@ -1008,7 +1023,7 @@ export class GameState extends EventEmitter {
         return this.attack() >= (unit.fragile ? 1 : unit.toughness);
     }
 
-    public assignAttack(unit: Unit) {
+    public assignAttack(unit: Unit): void {
         if (!this.canAssignAttack(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -1021,7 +1036,7 @@ export class GameState extends EventEmitter {
         unit.assignedAttack = amount;
     }
 
-    public canCancelAssignAttack(unit: Unit) {
+    public canCancelAssignAttack(unit: Unit): boolean {
         this.requireActionPhase();
         this.requireEnemyUnit(unit, true);
         if (this.defensesOverran() && blocking(unit) && !frozen(unit)) {
@@ -1031,7 +1046,7 @@ export class GameState extends EventEmitter {
         return unit.assignedAttack > 0;
     }
 
-    public cancelAssignAttack(unit: Unit) {
+    public cancelAssignAttack(unit: Unit): void {
         if (!this.canCancelAssignAttack(unit)) {
             throw new InvalidStateError('Unavailable action.', unit);
         }
@@ -1054,14 +1069,14 @@ export class GameState extends EventEmitter {
         this.addAttack(amount);
     }
 
-    public endTurn() {
+    public endTurn(): void {
         this.requireActionPhase();
 
         this.runEndTurn();
     }
 
     // Public
-    public init(info: any) {
+    public init(info: any): void {
         if (this.turnNumber !== null) {
             throw new InvalidStateError('Already initialized.');
         }
@@ -1082,7 +1097,7 @@ export class GameState extends EventEmitter {
         this.runStartTurn();
     }
 
-    public getSnapshot() {
+    public getSnapshot(): IGameStateSnapshot {
         return {
             deck: deepClone(this.deck),
             turnNumber: this.turnNumber,
@@ -1094,7 +1109,7 @@ export class GameState extends EventEmitter {
         };
     }
 
-    public restoreSnapshot(snapshot: any) {
+    public restoreSnapshot(snapshot: IGameStateSnapshot): void {
         this.deck = deepClone(snapshot.deck);
         this.turnNumber = snapshot.turnNumber;
         this.activePlayer = snapshot.activePlayer;

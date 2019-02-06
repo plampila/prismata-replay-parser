@@ -1,7 +1,7 @@
 import { DataError } from './customErrors';
 import { Unit } from './gameState';
 
-export function deepClone(o: any) {
+export function deepClone<T>(o: any): T {
     if (o === undefined || o === null || typeof(o) !== 'object') {
         return o;
     }
@@ -13,12 +13,12 @@ export function deepClone(o: any) {
     return temp;
 }
 
-export function blocking(unit: Unit) {
+export function blocking(unit: Unit): boolean {
     return (!unit.destroyed && !unit.sacrificed && !unit.delay && unit.defaultBlocking &&
         !unit.abilityUsed) === true;
 }
 
-export function purchasedThisTurn(unit: Unit) {
+export function purchasedThisTurn(unit: Unit): boolean {
     if (unit.destroyed || !unit.purchased) {
         return false;
     }
@@ -28,11 +28,11 @@ export function purchasedThisTurn(unit: Unit) {
     return unit.delay === unit.buildTime;
 }
 
-export function frozen(unit: Unit) {
+export function frozen(unit: Unit): boolean {
     return !unit.destroyed && unit.disruption >= unit.toughness;
 }
 
-function validSnipeTarget(unit: Unit, condition: any) {
+function validSnipeTarget(unit: Unit, condition: any): boolean {
     if (unit.delay && unit.purchased) {
         return false;
     }
@@ -69,7 +69,7 @@ function validSnipeTarget(unit: Unit, condition: any) {
     });
 }
 
-function validChillTarget(unit: Unit) {
+function validChillTarget(unit: Unit): boolean {
     if (!blocking(unit)) {
         return false;
     }
@@ -79,7 +79,7 @@ function validChillTarget(unit: Unit) {
     return true;
 }
 
-export function validTarget(unit: Unit, targetAction: string, condition: any) {
+export function validTarget(unit: Unit, targetAction: string, condition: any): boolean {
     switch (targetAction) {
     case 'disrupt':
         return validChillTarget(unit);
@@ -113,7 +113,7 @@ export function parseResources(resources: string | number): { [resource: string]
     };
 }
 
-export function targetingIsUseful(units: Unit[], target: Unit) {
+export function targetingIsUseful(units: Unit[], target: Unit): boolean {
     switch (units[0].targetAction) {
     case 'disrupt':
         // Bug in the game: Should be taking existing freeze into account
