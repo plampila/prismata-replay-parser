@@ -12,11 +12,9 @@
   "author": "Pekka Lampila",
   "email": "pekka.lampila@iki.fi",
   "files": [
-    "index.js",
-    "lib/",
-    "bin/"
+    "lib/"
   ],
-  "main": "index.js",
+  "main": "lib/index.js",
   "bin": {
     "prismata-replay-parser": "lib/bin/prismataReplayParser.js"
   },
