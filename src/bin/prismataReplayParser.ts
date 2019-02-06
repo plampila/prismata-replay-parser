@@ -8,7 +8,8 @@ import minimist from 'minimist';
 import sourceMapSupport from 'source-map-support';
 import * as zlib from 'zlib';
 
-import { constants, NotImplementedError, ReplayParser } from '..';
+import { NotImplementedError, ReplayParser } from '..';
+import { ActionType, EndCondition, GameFormat, ReplayCommandType } from '../constants';
 
 function loadSync(file: string): Buffer {
     if (file.endsWith('.gz')) {
@@ -31,7 +32,7 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     console.info(`Server version: ${parser.getServerVersion()}`);
     console.info(`P1: ${JSON.stringify(parser.getPlayerInfo(0))}`);
     console.info(`P2: ${JSON.stringify(parser.getPlayerInfo(1))}`);
-    console.info(`Game format: ${Symbol.keyFor(parser.getGameFormat())}`);
+    console.info(`Game format: ${GameFormat[parser.getGameFormat()]}`); // TODO: to string
     console.info(`Time control P1: ${JSON.stringify(parser.getTimeControl(0))}`);
     console.info(`Time control P2: ${JSON.stringify(parser.getTimeControl(1))}`);
     console.info(`Deck P1: ${JSON.stringify(parser.getDeck(0))}`);
@@ -40,33 +41,24 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     console.info(`Start position P2: ${JSON.stringify(parser.getStartPosition(1))}`);
 
     if (showCommands) {
-        parser.on('command', (command: symbol, id: string | undefined) => {
+        parser.on('command', (command: ReplayCommandType, id: string | undefined) => {
             if (id !== undefined) {
-                log(1, `${Symbol.keyFor(command)} ${id}`);
+                log(1, `${command} ${id}`);
             } else {
-                const typeName = Symbol.keyFor(command);
-                if (typeName === undefined) {
-                    throw new Error('Command symbol has no key.');
-                }
-                log(1, typeName);
+                log(1, command);
             }
         });
     }
 
-    parser.on('action', (type, data) => {
-        const typeName = Symbol.keyFor(type);
-        if (typeName === undefined) {
-            throw new Error('Action symbol has no key.');
-        }
+    parser.on('action', (type: ActionType, data) => {
         if (data && data.target) {
-            log(showCommands ? 2 : 1,
-                `Action: ${typeName} ${data.unit.name} -> ${data.target.name}`);
+            log(showCommands ? 2 : 1, `Action: ${ActionType[type]} ${data.unit.name} -> ${data.target.name}`);
         } else if (data && data.unit) {
-            log(showCommands ? 2 : 1, `${typeName} ${data.unit.name}`);
+            log(showCommands ? 2 : 1, `${ActionType[type]} ${data.unit.name}`);
         } else if (data && data.name) {
-            log(showCommands ? 2 : 1, `${typeName} ${data.name}`);
+            log(showCommands ? 2 : 1, `${ActionType[type]} ${data.name}`);
         } else {
-            log(showCommands ? 2 : 1, typeName);
+            log(showCommands ? 2 : 1, ActionType[type]);
         }
     });
 
@@ -100,38 +92,38 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
 
     const result = parser.getResult();
     switch (result.endCondition) {
-    case constants.END_CONDITION_RESIGN:
+    case EndCondition.Resign:
         if (result.winner === null) {
             throw new Error('Winner not set.');
         }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by resignation.`);
         break;
-    case constants.END_CONDITION_ELIMINATION:
+    case EndCondition.Elimination:
         if (result.winner === null) {
             throw new Error('Winner not set.');
         }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by elimination.`);
         break;
-    case constants.END_CONDITION_DEFEATED:
+    case EndCondition.Defeated:
         if (result.winner === null) {
             throw new Error('Winner not set.');
         }
         console.info(`P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1}.`);
         break;
-    case constants.END_CONDITION_REPETITION:
+    case EndCondition.Repetition:
         assert(result.winner === null);
         console.info('Game ended in a draw by repetition.');
         break;
-    case constants.END_CONDITION_DISCONNECT:
+    case EndCondition.Disconnect:
         if (result.winner === null) {
             throw new Error('Winner not set.');
         }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by disconnect.`);
         break;
-    case constants.END_CONDITION_DOUBLE_DISCONNECT:
+    case EndCondition.DoubleDisconnect:
         assert(result.winner === null);
         console.info('Game ended in a draw by double disconnect.');
         break;

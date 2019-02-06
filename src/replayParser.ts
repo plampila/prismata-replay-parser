@@ -2,61 +2,46 @@ import { strict as assert } from 'assert';
 import { EventEmitter } from 'events';
 import * as timsort from 'timsort';
 
-import constants from './constants';
+import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { Deck, GameState, IGameStateSnapshot, Player, Unit } from './gameState';
 import {
     blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget,
 } from './util';
 
-const GAME_FORMATS: {
-    [code: number]: symbol;
-} = {
-    200: constants.GAME_FORMAT_RANKED,
-    201: constants.GAME_FORMAT_VERSUS_BOT,
-    202: constants.GAME_FORMAT_VERSUS,
-    203: constants.GAME_FORMAT_EVENT,
-    204: constants.GAME_FORMAT_CASUAL,
-};
+const DRAW_END_CONDITIONS = [EndCondition.Repetition, EndCondition.DoubleDisconnect, EndCondition.Draw];
 
-const END_CONDITIONS: {
-    [code: number]: symbol;
-} = {
-    0: constants.END_CONDITION_RESIGN,
-    1: constants.END_CONDITION_ELIMINATION,
-    2: constants.END_CONDITION_DEFEATED,
-    11: constants.END_CONDITION_REPETITION,
-    30: constants.END_CONDITION_DISCONNECT,
-    31: constants.END_CONDITION_DOUBLE_DISCONNECT,
-    32: constants.END_CONDITION_DRAW, // is this some specific type of draw?
-};
-const DRAW_END_CONDITIONS = [constants.END_CONDITION_REPETITION,
-    constants.END_CONDITION_DOUBLE_DISCONNECT, constants.END_CONDITION_DRAW];
+const REPLAY_COMMANDS_WITH_IDS = [
+    ReplayCommandType.ClickUnit,
+    ReplayCommandType.ShiftClickUnit,
+    ReplayCommandType.ClickBlueprint,
+    ReplayCommandType.ShiftClickBlueprint,
+];
 
 const ACTION_TO_GAME_STATE_METHOD: {
     [action: string]: string;
 } = {
-    [constants.ACTION_ASSIGN_DEFENSE.toString()]: 'assignDefense',
-    [constants.ACTION_CANCEL_ASSIGN_DEFENSE.toString()]: 'cancelAssignDefense',
-    [constants.ACTION_CANCEL_PURCHASE.toString()]: 'cancelPurchase',
-    [constants.ACTION_CANCEL_USE_ABILITY.toString()]: 'cancelUseAbility',
-    [constants.ACTION_ASSIGN_ATTACK.toString()]: 'assignAttack',
-    [constants.ACTION_CANCEL_ASSIGN_ATTACK.toString()]: 'cancelAssignAttack',
+    [ActionType.AssignDefense.toString()]: 'assignDefense',
+    [ActionType.CancelAssignDefense.toString()]: 'cancelAssignDefense',
+    [ActionType.CancelPurchase.toString()]: 'cancelPurchase',
+    [ActionType.CancelUseAbility.toString()]: 'cancelUseAbility',
+    [ActionType.AssignAttack.toString()]: 'assignAttack',
+    [ActionType.CancelAssignAttack.toString()]: 'cancelAssignAttack',
 };
 
 const ACTION_TO_GAME_STATE_UNIT_TEST_METHOD: {
     [action: string]: string;
 } = {
-    [constants.ACTION_ASSIGN_DEFENSE.toString()]: 'canAssignDefense',
-    [constants.ACTION_CANCEL_ASSIGN_DEFENSE.toString()]: 'canCancelAssignDefense',
-    [constants.ACTION_CANCEL_PURCHASE.toString()]: 'canCancelPurchase',
-    [constants.ACTION_ASSIGN_ATTACK.toString()]: 'canAssignAttack',
-    [constants.ACTION_CANCEL_ASSIGN_ATTACK.toString()]: 'canCancelAssignAttack',
-    [constants.ACTION_USE_ABILITY.toString()]: 'canUseAbility',
-    [constants.ACTION_CANCEL_USE_ABILITY.toString()]: 'canCancelUseAbility',
+    [ActionType.AssignDefense.toString()]: 'canAssignDefense',
+    [ActionType.CancelAssignDefense.toString()]: 'canCancelAssignDefense',
+    [ActionType.CancelPurchase.toString()]: 'canCancelPurchase',
+    [ActionType.AssignAttack.toString()]: 'canAssignAttack',
+    [ActionType.CancelAssignAttack.toString()]: 'canCancelAssignAttack',
+    [ActionType.UseAbility.toString()]: 'canUseAbility',
+    [ActionType.CancelUseAbility.toString()]: 'canCancelUseAbility',
 };
 
-function sortShiftClickMatches(action: symbol, units: Unit[]): Unit[] {
+function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
     function sortUnits(rules: string[], offset?: number): void {
         if (offset !== undefined && offset < 0) {
             offset = undefined;
@@ -94,11 +79,11 @@ function sortShiftClickMatches(action: symbol, units: Unit[]): Unit[] {
     }
 
     switch (action) {
-    case constants.ACTION_SELECT_FOR_TARGETING:
+    case ActionType.SelectForTargeting:
         sortUnits(['<lifespan', '>toughness', '>charge']);
         break;
-    case constants.ACTION_USE_ABILITY:
-    case constants.ACTION_CANCEL_USE_ABILITY:
+    case ActionType.UseAbility:
+    case ActionType.CancelUseAbility:
         if (units[0].defaultBlocking) {
             sortUnits(['>lifespan', '<toughness', '>charge']);
         } else if (units[0].HPUsed) {
@@ -107,12 +92,12 @@ function sortShiftClickMatches(action: symbol, units: Unit[]): Unit[] {
             sortUnits(['<lifespan', '<toughness', '>charge']);
         }
         break;
-    case constants.ACTION_ASSIGN_DEFENSE:
-    case constants.ACTION_CANCEL_ASSIGN_DEFENSE:
+    case ActionType.AssignDefense:
+    case ActionType.CancelAssignDefense:
         sortUnits(['<assignedAttack', '<lifespan', '<toughness', '<charge']);
         break;
-    case constants.ACTION_ASSIGN_ATTACK:
-    case constants.ACTION_CANCEL_ASSIGN_ATTACK:
+    case ActionType.AssignAttack:
+    case ActionType.CancelAssignAttack:
         if (units[0].defaultBlocking) {
             // Sort blockers and non-blockers separately
             sortUnits(['<delay', '<abilityUsed', '<lifespan', '>toughness', '>charge']);
@@ -122,8 +107,8 @@ function sortShiftClickMatches(action: symbol, units: Unit[]): Unit[] {
             sortUnits(['<assignedAttack', '<delay-1', '>lifespan+delay', '<toughness', '>charge']);
         }
         break;
-    case constants.ACTION_PURCHASE:
-    case constants.ACTION_CANCEL_PURCHASE:
+    case ActionType.Purchase:
+    case ActionType.CancelPurchase:
         break;
     default:
         throw new Error(`Unsupported action: ${String(action)}`);
@@ -132,7 +117,7 @@ function sortShiftClickMatches(action: symbol, units: Unit[]): Unit[] {
 }
 
 interface IReplayCommand {
-    command: symbol;
+    command: ReplayCommandType;
     id?: number;
     player?: number;
     params?: any;
@@ -148,7 +133,7 @@ function parseCommand(data: any): IReplayCommand {
             throw new DataError('Unknown properties.', data);
         }
         return {
-            command: constants.REPLAY_COMMAND_EMOTE,
+            command: ReplayCommandType.Emote,
             player: data._id,
             params: data._params,
         };
@@ -162,48 +147,26 @@ function parseCommand(data: any): IReplayCommand {
     }
 
     const id = data._id;
-    switch (data._type) {
-    case 'inst clicked':
-        return { command: constants.REPLAY_COMMAND_CLICK_UNIT, id };
-    case 'inst shift clicked':
-        return { command: constants.REPLAY_COMMAND_SHIFT_CLICK_UNIT, id };
-    case 'card clicked':
-        return { command: constants.REPLAY_COMMAND_CLICK_BLUEPRINT, id };
-    case 'card shift clicked':
-        return { command: constants.REPLAY_COMMAND_SHIFT_CLICK_BLUEPRINT, id };
-    case 'space clicked':
-        if (id !== -1 && id !== 0) {
-            throw new DataError('Unknown ID for space.', id);
-        }
-        return { command: constants.REPLAY_COMMAND_CLICK_SPACE };
-    case 'revert clicked':
-        if (id !== -1) {
-            throw new DataError('Unknown ID.', data);
-        }
-        return { command: constants.REPLAY_COMMAND_CLICK_REVERT };
-    case 'undo clicked':
-        if (id !== -1) {
-            throw new DataError('Unknown ID.', data);
-        }
-        return { command: constants.REPLAY_COMMAND_CLICK_UNDO };
-    case 'redo clicked':
-        if (id !== -1) {
-            throw new DataError('Unknown ID.', data);
-        }
-        return { command: constants.REPLAY_COMMAND_CLICK_REDO };
-    case 'cancel target processed':
-        if (id !== -1) {
-            throw new DataError('Unknown ID.', data);
-        }
-        return { command: constants.REPLAY_COMMAND_CANCEL_TARGETING };
-    case 'end swipe processed':
-        if (id !== -1 && id !== 0) {
-            throw new DataError('Unknown ID.', data);
-        }
-        return { command: constants.REPLAY_COMMAND_END_COMBINED_ACTION };
-    default:
-        throw new DataError('Unknown command type', data);
+    const command: ReplayCommandType | undefined = Object.values(ReplayCommandType).find(x => data._type === x);
+    if (command === undefined) {
+        throw new DataError('Unknown command type.', data);
     }
+
+    if (REPLAY_COMMANDS_WITH_IDS.includes(command)) {
+        return { command, id };
+    }
+
+    if (command === ReplayCommandType.ClickSpace || ReplayCommandType.EndCombinedAction) {
+        if (id !== -1 && id !== 0) {
+            throw new DataError('Unknown ID.', data);
+        }
+    } else {
+        if (id !== -1) {
+            throw new DataError('Unknown ID.', data);
+        }
+    }
+
+    return { command };
 }
 
 function parseDeckAndInitInfo(data: any): any {
@@ -324,7 +287,7 @@ class Snapshot implements ISnapshot {
 }
 
 interface IClickAction {
-    action?: symbol;
+    action?: ActionType;
     unit?: Unit;
 }
 
@@ -336,7 +299,7 @@ interface ITimeControl {
 }
 
 interface IResult {
-    endCondition: symbol;
+    endCondition: EndCondition;
     winner: Player;
 }
 
@@ -422,21 +385,21 @@ export class ReplayParser extends EventEmitter {
             if (unit.assignedAttack) {
                 if (this.state.attack(this.state.villain()) === 0 && this.state.absorber()) {
                     return {
-                        action: constants.ACTION_CANCEL_ASSIGN_DEFENSE,
+                        action: ActionType.CancelAssignDefense,
                         unit: this.state.absorber(),
                     };
                 }
-                return { action: constants.ACTION_CANCEL_ASSIGN_DEFENSE, unit };
+                return { action: ActionType.CancelAssignDefense, unit };
             }
             if (this.state.attack(this.state.villain()) <= 0) {
                 return {};
             }
-            return { action: constants.ACTION_ASSIGN_DEFENSE, unit };
+            return { action: ActionType.AssignDefense, unit };
         }
 
         if (unit.constructedBy && purchasedThisTurn(this.state.units[unit.constructedBy])) {
             return {
-                action: constants.ACTION_CANCEL_PURCHASE,
+                action: ActionType.CancelPurchase,
                 unit: this.state.units[unit.constructedBy],
             };
         }
@@ -450,14 +413,14 @@ export class ReplayParser extends EventEmitter {
                         if (!unit.sacrificed) {
                             if (!this.inDamagePhase) {
                                 return {
-                                    action: constants.ACTION_CANCEL_USE_ABILITY,
+                                    action: ActionType.CancelUseAbility,
                                     unit: source,
                                 };
                             }
                             if (!this.state.breaching() && !unit.fragile && !unit.assignedAttack &&
                                     this.state.attack() < unit.toughness) {
                                 return {
-                                    action: constants.ACTION_CANCEL_USE_ABILITY,
+                                    action: ActionType.CancelUseAbility,
                                     unit: source,
                                 };
                             }
@@ -465,9 +428,9 @@ export class ReplayParser extends EventEmitter {
                         break;
                     case 'snipe':
                         if (unit.assignedAttack) {
-                            return { action: constants.ACTION_CANCEL_ASSIGN_ATTACK, unit };
+                            return { action: ActionType.CancelAssignAttack, unit };
                         }
-                        return { action: constants.ACTION_CANCEL_USE_ABILITY, unit: source };
+                        return { action: ActionType.CancelUseAbility, unit: source };
                     }
                 }
             }
@@ -480,24 +443,24 @@ export class ReplayParser extends EventEmitter {
                 if (this.state.attack() === 0 && this.state.breachAbsorber() &&
                     unit !== this.state.breachAbsorber()) {
                     return {
-                        action: constants.ACTION_CANCEL_ASSIGN_ATTACK,
+                        action: ActionType.CancelAssignAttack,
                         unit: this.state.breachAbsorber(),
                     };
                 }
                 if (this.state.defensesOverran() && blocking(unit)) {
                     if (frozen(unit)) {
-                        return { action: constants.ACTION_CANCEL_ASSIGN_ATTACK, unit };
+                        return { action: ActionType.CancelAssignAttack, unit };
                     }
                     if (this.state.breaching() || unit.defensesBypassed) {
                         return {};
                     }
-                    return { action: constants.ACTION_CANCEL_OVERRUN_DEFENSES };
+                    return { action: ActionType.CancelOverrunDefenses };
                 }
-                return { action: constants.ACTION_CANCEL_ASSIGN_ATTACK, unit };
+                return { action: ActionType.CancelAssignAttack, unit };
             }
 
             if (unit.undefendable && !unit.delay) {
-                return { action: constants.ACTION_ASSIGN_ATTACK, unit };
+                return { action: ActionType.AssignAttack, unit };
             }
             if (this.state.defensesOverran()) {
                 if ((unit.delay && unit.purchased && !blocking(unit)) &&
@@ -507,20 +470,20 @@ export class ReplayParser extends EventEmitter {
                 if (!unit.fragile && this.state.attack() < unit.toughness) {
                     return {};
                 }
-                return { action: constants.ACTION_ASSIGN_ATTACK, unit };
+                return { action: ActionType.AssignAttack, unit };
             }
             if (!blocking(unit) || !this.state.canOverrunDefenses()) {
                 return {};
             }
-            return { action: constants.ACTION_OVERRUN_DEFENSES };
+            return { action: ActionType.OverrunDefenses };
         }
 
         if (purchasedThisTurn(unit)) {
-            return { action: constants.ACTION_CANCEL_PURCHASE, unit };
+            return { action: ActionType.CancelPurchase, unit };
         }
         if (unit.constructedBy) {
             return {
-                action: constants.ACTION_CANCEL_USE_ABILITY,
+                action: ActionType.CancelUseAbility,
                 unit: this.state.units[unit.constructedBy],
             };
         }
@@ -532,7 +495,7 @@ export class ReplayParser extends EventEmitter {
             if (unit.sacrificed && (!unit.abilityScript || !unit.abilityScript.selfsac)) {
                 return {};
             }
-            return { action: constants.ACTION_CANCEL_USE_ABILITY, unit };
+            return { action: ActionType.CancelUseAbility, unit };
         }
         if (unit.sacrificed || unit.delay || unit.charge === 0 ||
             (unit.HPUsed && unit.toughness < unit.HPUsed)) {
@@ -540,84 +503,81 @@ export class ReplayParser extends EventEmitter {
         }
         if (unit.targetAction) {
             // TODO: Check if there are legal targets
-            return { action: constants.ACTION_SELECT_FOR_TARGETING, unit };
+            return { action: ActionType.SelectForTargeting, unit };
         }
-        return { action: constants.ACTION_USE_ABILITY, unit };
+        return { action: ActionType.UseAbility, unit };
     }
 
-    private runAction(action: symbol, data?: any): void {
-        if (!action) {
-            throw new Error('No action given.');
-        }
+    private runAction(action: ActionType, data?: any): void {
         this.emit('action', action, data);
 
         switch (action) {
-        case constants.ACTION_END_DEFENSE:
+        case ActionType.EndDefense:
             this.endDefenseSnapshot = this.getSnapshot();
             this.state.endDefense();
             break;
-        case constants.ACTION_SELECT_FOR_TARGETING:
+        case ActionType.SelectForTargeting:
             if (!data.unit) {
                 throw new DataError('Action requires a unit.', action);
             }
             this.targetingUnits.push(data.unit);
             break;
-        case constants.ACTION_CANCEL_TARGETING:
+        case ActionType.CancelTargeting:
             if (this.targetingUnits.length === 0) {
                 throw new InvalidStateError('Not targeting.');
             }
             this.targetingUnits = [];
             this.stopCombinedAction();
             break;
-        case constants.ACTION_USE_ABILITY:
+        case ActionType.UseAbility:
             if (!data.unit) {
                 throw new DataError('Action requires a unit.', action);
             }
             this.state.useAbility(data.unit, data.target);
             break;
-        case constants.ACTION_PURCHASE:
+        case ActionType.Purchase:
             if (!data.name) {
                 throw new DataError('Action requires a unit name.', action);
             }
             this.state.purchase(data.name);
             break;
-        case constants.ACTION_ASSIGN_DEFENSE:
-        case constants.ACTION_CANCEL_ASSIGN_DEFENSE:
-        case constants.ACTION_CANCEL_PURCHASE:
-        case constants.ACTION_CANCEL_USE_ABILITY:
-        case constants.ACTION_ASSIGN_ATTACK:
-        case constants.ACTION_CANCEL_ASSIGN_ATTACK: {
+        case ActionType.AssignDefense:
+        case ActionType.CancelAssignDefense:
+        case ActionType.CancelPurchase:
+        case ActionType.CancelUseAbility:
+        case ActionType.AssignAttack:
+        case ActionType.CancelAssignAttack: {
             if (!data.unit) {
                 throw new DataError('Action requires a unit.', action);
             }
 
             this.state[ACTION_TO_GAME_STATE_METHOD[action.toString()]](data.unit);
 
-            if (action === constants.ACTION_ASSIGN_ATTACK && !data.unit.undefendable &&
+            if (action === ActionType.AssignAttack && !data.unit.undefendable &&
                 !this.state.blockers(this.state.villain()).some(x => !x.assignedAttack)) {
                 this.inDamagePhase = true;
             }
-            if (action === constants.ACTION_CANCEL_USE_ABILITY &&
+            if (action === ActionType.CancelUseAbility &&
                 data.unit.targetAction === 'disrupt' && !this.state.defensesOverran()) {
                 this.inDamagePhase = false;
             }
             break;
         }
-        case constants.ACTION_PROCEED_TO_DAMAGE:
+        case ActionType.ProceedToDamage:
             if (this.inDamagePhase) {
                 throw new InvalidStateError('Already proceeded to damage.');
             }
             this.inDamagePhase = true;
             break;
-        case constants.ACTION_OVERRUN_DEFENSES:
+        case ActionType.OverrunDefenses:
             this.state.overrunDefenses();
             this.inDamagePhase = true;
             break;
-        case constants.ACTION_CANCEL_OVERRUN_DEFENSES:
+        case ActionType.CancelOverrunDefenses:
             this.state.cancelOverrunDefenses();
             this.inDamagePhase = false;
             break;
-        case constants.ACTION_END_TURN:
+        case ActionType.EndTurn:
             if (this.inConfirmPhase) {
                 throw new InvalidStateError('Already in confirm phase.');
             }
@@ -626,7 +586,7 @@ export class ReplayParser extends EventEmitter {
             this.inDamagePhase = false;
             this.inConfirmPhase = true;
             break;
-        case constants.ACTION_COMMIT_TURN:
+        case ActionType.CommitTurn:
             this.stopCombinedAction();
             this.inConfirmPhase = false;
             this.state.startTurn();
@@ -635,7 +595,7 @@ export class ReplayParser extends EventEmitter {
             this.undoSnapshots = [];
             this.startTurnSnapshot = this.getSnapshot();
             break;
-        case constants.ACTION_UNDO: {
+        case ActionType.Undo: {
             const snapshot = this.undoSnapshots.pop();
             if (snapshot === undefined) {
                 throw new InvalidStateError('No undo available.');
@@ -650,9 +610,9 @@ export class ReplayParser extends EventEmitter {
             }
             break;
         }
-        case constants.ACTION_REDO:
+        case ActionType.Redo:
             throw new NotImplementedError('Redo');
-        case constants.ACTION_REVERT:
+        case ActionType.Revert:
             if (this.endActionSnapshot) {
                 this.restoreSnapshot(this.endActionSnapshot);
                 assert(this.endActionSnapshot === null);
@@ -739,7 +699,7 @@ export class ReplayParser extends EventEmitter {
                 if (i > 0 && !this.state.canUseAbility(this.targetingUnits[i], target)) {
                     break;
                 }
-                this.runAction(constants.ACTION_USE_ABILITY, {
+                this.runAction(ActionType.UseAbility, {
                     unit: this.targetingUnits[i],
                     target,
                 });
@@ -764,7 +724,7 @@ export class ReplayParser extends EventEmitter {
                 throw new DataError('Unknown target action.', targetAction);
             }
         })) {
-            this.runAction(constants.ACTION_CANCEL_TARGETING);
+            this.runAction(ActionType.CancelTargeting);
         }
     }
 
@@ -774,7 +734,7 @@ export class ReplayParser extends EventEmitter {
             if (this.targetingUnits.length > 0) {
                 throw new InvalidStateError('Targeting in confirm phase.');
             }
-            this.runAction(constants.ACTION_UNDO);
+            this.runAction(ActionType.Undo);
             return;
         }
 
@@ -791,29 +751,25 @@ export class ReplayParser extends EventEmitter {
             throw new InvalidStateError('No click action.', clickedUnit);
         }
 
-        if (action === constants.ACTION_CANCEL_ASSIGN_ATTACK &&
-            unit.assignedAttack < unit.toughness) {
+        if (action === ActionType.CancelAssignAttack && unit.assignedAttack < unit.toughness) {
             this.addUndoSnapshot();
             if (unit === clickedUnit && this.state.slate(clickedUnit.player)
                 .some(x => x !== clickedUnit && x.name === clickedUnit.name && !x.delay)) {
                 this.startCombinedAction();
             }
-        } else if (action === constants.ACTION_CANCEL_ASSIGN_DEFENSE &&
-            unit.assignedAttack < unit.toughness) {
+        } else if (action === ActionType.CancelAssignDefense && unit.assignedAttack < unit.toughness) {
             this.addUndoSnapshot();
-        } else if ((ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action.toString()] &&
-            action !== constants.ACTION_CANCEL_PURCHASE) ||
-            action === constants.ACTION_SELECT_FOR_TARGETING) {
+        } else if ((ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action.toString()] && action !== ActionType.CancelPurchase) ||
+                   action === ActionType.SelectForTargeting) {
             if (!this.combinedAction) {
                 this.addUndoSnapshot();
                 this.startCombinedAction();
             }
-        } else if (action !== constants.ACTION_UNDO) {
+        } else if (action !== ActionType.Undo) {
             this.addUndoSnapshot();
         }
 
-        if (action === constants.ACTION_CANCEL_USE_ABILITY && unit.targetAction &&
-            clickedUnit !== unit) {
+        if (action === ActionType.CancelUseAbility && unit.targetAction && clickedUnit !== unit) {
             clickedUnit.targetedBy.map((x: number) => this.state.units[x]).forEach((x: Unit) => {
                 this.runAction(action, { unit: x });
             });
@@ -829,7 +785,7 @@ export class ReplayParser extends EventEmitter {
             if (this.targetingUnits.length > 0) {
                 throw new InvalidStateError('Targeting in confirm phase.');
             }
-            this.runAction(constants.ACTION_UNDO);
+            this.runAction(ActionType.Undo);
             return;
         }
 
@@ -846,12 +802,12 @@ export class ReplayParser extends EventEmitter {
             throw new InvalidStateError('No click action.', clickedUnit);
         }
 
-        if (action === constants.ACTION_SELECT_FOR_TARGETING) {
+        if (action === ActionType.SelectForTargeting) {
             if (!this.combinedAction) {
                 this.addUndoSnapshot();
                 this.startCombinedAction();
             }
-        } else if (action !== constants.ACTION_UNDO) {
+        } else if (action !== ActionType.Undo) {
             this.addUndoSnapshot();
         }
 
@@ -860,8 +816,7 @@ export class ReplayParser extends EventEmitter {
             return;
         }
 
-        if (action === constants.ACTION_CANCEL_USE_ABILITY && unit.targetAction &&
-            clickedUnit !== unit) {
+        if (action === ActionType.CancelUseAbility && unit.targetAction && clickedUnit !== unit) {
             const targets = this.state.slate(clickedUnit.player).filter(x => {
                 if (x.name !== clickedUnit.name) {
                     return false;
@@ -878,13 +833,13 @@ export class ReplayParser extends EventEmitter {
             });
             targets.reduce((s, x) => s.concat(x.targetedBy), []).map((x: number) => this.state.units[x])
                 .forEach((x: Unit) => {
-                    this.runAction(constants.ACTION_CANCEL_USE_ABILITY, { unit: x });
+                    this.runAction(ActionType.CancelUseAbility, { unit: x });
                 });
             return;
         }
 
-        if ([constants.ACTION_CANCEL_ASSIGN_DEFENSE, constants.ACTION_CANCEL_ASSIGN_ATTACK]
-            .includes(action) && unit.name !== clickedUnit.name) {
+        if ([ActionType.CancelAssignDefense, ActionType.CancelAssignAttack].includes(action) &&
+            unit.name !== clickedUnit.name) {
             this.runAction(action, { unit });
             return;
         }
@@ -894,7 +849,7 @@ export class ReplayParser extends EventEmitter {
                 return false;
             }
             // Frontline units are in different groups based on blocking status
-            if (action === constants.ACTION_ASSIGN_ATTACK && x.undefendable &&
+            if (action === ActionType.AssignAttack && x.undefendable &&
                 blocking(x) !== blocking(unit)) {
                 return false;
             }
@@ -905,8 +860,7 @@ export class ReplayParser extends EventEmitter {
             if (xClick.unit !== x) {
                 // Allow redirected action as long as it's the same unit type, shift clicking
                 // defenders where first one removes absorber, same for breaching
-                if (![constants.ACTION_CANCEL_ASSIGN_DEFENSE,
-                    constants.ACTION_CANCEL_ASSIGN_ATTACK].includes(action) ||
+                if (![ActionType.CancelAssignDefense, ActionType.CancelAssignAttack].includes(action) ||
                     xClick.unit.name !== x.name) {
                     return false;
                 }
@@ -918,7 +872,7 @@ export class ReplayParser extends EventEmitter {
         }
         sortShiftClickMatches(action, matching);
         // make sure to undo breachAbsorber first
-        if (action === constants.ACTION_CANCEL_ASSIGN_ATTACK && this.state.breachAbsorber() &&
+        if (action === ActionType.CancelAssignAttack && this.state.breachAbsorber() &&
             matching.includes(this.state.breachAbsorber())) {
             const i = matching.indexOf(this.state.breachAbsorber());
             if (i !== 0) {
@@ -928,7 +882,7 @@ export class ReplayParser extends EventEmitter {
         }
         this.runAction(action, { unit: matching[0] });
         matching.slice(1).some(x => {
-            if (action !== constants.ACTION_SELECT_FOR_TARGETING &&
+            if (action !== ActionType.SelectForTargeting &&
                 !this.state[ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action.toString()]](x)) {
                 return true;
             }
@@ -937,11 +891,11 @@ export class ReplayParser extends EventEmitter {
         });
     }
 
-    private runCommand(command: symbol, id?: number): void {
+    private runCommand(command: ReplayCommandType, id?: number): void {
         this.emit('command', command, id);
 
         switch (command) {
-        case constants.REPLAY_COMMAND_CLICK_UNIT: {
+        case ReplayCommandType.ClickUnit: {
             if (id === undefined) {
                 throw new InvalidStateError('Command requires ID.', command);
             }
@@ -955,7 +909,7 @@ export class ReplayParser extends EventEmitter {
             this.runClickUnit(unit);
             break;
         }
-        case constants.REPLAY_COMMAND_SHIFT_CLICK_UNIT: {
+        case ReplayCommandType.ShiftClickUnit: {
             if (id === undefined) {
                 throw new InvalidStateError('Command requires ID.', command);
             }
@@ -969,8 +923,8 @@ export class ReplayParser extends EventEmitter {
             this.runShiftClickUnit(unit);
             break;
         }
-        case constants.REPLAY_COMMAND_CLICK_BLUEPRINT:
-        case constants.REPLAY_COMMAND_SHIFT_CLICK_BLUEPRINT: {
+        case ReplayCommandType.ClickBlueprint:
+        case ReplayCommandType.ShiftClickBlueprint: {
             if (id === undefined) {
                 throw new InvalidStateError('Command requires ID.', command);
             }
@@ -979,53 +933,53 @@ export class ReplayParser extends EventEmitter {
                 throw new InvalidStateError('Blueprint not found', id);
             }
             if (this.inConfirmPhase) {
-                this.runAction(constants.ACTION_UNDO);
+                this.runAction(ActionType.Undo);
                 break;
             }
             if (this.targetingUnits.length > 0) {
-                this.runAction(constants.ACTION_CANCEL_TARGETING);
+                this.runAction(ActionType.CancelTargeting);
                 // continue
             }
             this.addUndoSnapshot();
             do {
-                this.runAction(constants.ACTION_PURCHASE, { name: blueprint.name });
-            } while (command === constants.REPLAY_COMMAND_SHIFT_CLICK_BLUEPRINT &&
+                this.runAction(ActionType.Purchase, { name: blueprint.name });
+            } while (command === ReplayCommandType.ShiftClickBlueprint &&
                 this.state.canPurchase(blueprint.name));
             break;
         }
-        case constants.REPLAY_COMMAND_CLICK_SPACE:
+        case ReplayCommandType.ClickSpace:
             if (this.inConfirmPhase) {
-                this.runAction(constants.ACTION_COMMIT_TURN);
+                this.runAction(ActionType.CommitTurn);
                 break;
             }
 
             if (this.targetingUnits.length > 0) {
-                this.runAction(constants.ACTION_CANCEL_TARGETING);
+                this.runAction(ActionType.CancelTargeting);
                 // continue
             }
 
             this.addUndoSnapshot();
 
             if (this.state.inDefensePhase) {
-                this.runAction(constants.ACTION_END_DEFENSE);
+                this.runAction(ActionType.EndDefense);
                 break;
             }
             if (!this.state.defensesOverran() && this.state.canOverrunDefenses()) {
-                this.runAction(constants.ACTION_OVERRUN_DEFENSES);
+                this.runAction(ActionType.OverrunDefenses);
                 break;
             }
             if (this.state.attack() > 0 && !this.inDamagePhase &&
                     !this.state.blockers(this.state.villain()).some(x => !x.assignedAttack)) {
-                this.runAction(constants.ACTION_PROCEED_TO_DAMAGE);
+                this.runAction(ActionType.ProceedToDamage);
                 break;
             }
             // TODO: Check that attack is spent
-            this.runAction(constants.ACTION_END_TURN);
+            this.runAction(ActionType.EndTurn);
             break;
-        case constants.REPLAY_COMMAND_CANCEL_TARGETING:
-            this.runAction(constants.ACTION_CANCEL_TARGETING);
+        case ReplayCommandType.CancelTargeting:
+            this.runAction(ActionType.CancelTargeting);
             break;
-        case constants.REPLAY_COMMAND_END_COMBINED_ACTION:
+        case ReplayCommandType.EndCombinedAction:
             if (!this.combinedAction) {
                 throw new InvalidStateError('Not in combined action.');
             }
@@ -1033,17 +987,17 @@ export class ReplayParser extends EventEmitter {
                 this.stopCombinedAction();
             }
             break;
-        case constants.REPLAY_COMMAND_CLICK_REVERT:
+        case ReplayCommandType.ClickRevert:
             this.addUndoSnapshot();
-            this.runAction(constants.ACTION_REVERT);
+            this.runAction(ActionType.Revert);
             break;
-        case constants.REPLAY_COMMAND_CLICK_UNDO:
-            this.runAction(constants.ACTION_UNDO);
+        case ReplayCommandType.ClickUndo:
+            this.runAction(ActionType.Undo);
             break;
-        case constants.REPLAY_COMMAND_CLICK_REDO:
-            this.runAction(constants.ACTION_REDO);
+        case ReplayCommandType.ClickRedo:
+            this.runAction(ActionType.Redo);
             break;
-        case constants.REPLAY_COMMAND_EMOTE:
+        case ReplayCommandType.Emote:
             break;
         default:
             throw new DataError('Unknown command type.', command);
@@ -1097,11 +1051,12 @@ export class ReplayParser extends EventEmitter {
         return this.data.versionInfo.serverVersion;
     }
 
-    public getGameFormat(): symbol {
-        if (GAME_FORMATS[this.data.format] === undefined) {
+    public getGameFormat(): GameFormat {
+        const gameFormat: GameFormat | undefined = Object.values(GameFormat).find(x => this.data.format === x);
+        if (gameFormat === undefined) {
             throw new DataError(`Unknown game format: ${this.data.format}`);
         }
-        return GAME_FORMATS[this.data.format];
+        return gameFormat;
     }
 
     public getPlayerInfo(player: number): any {
@@ -1151,8 +1106,7 @@ export class ReplayParser extends EventEmitter {
         }
 
         info.rating = getRating(ratingInfo.initialRatings[player]);
-        if (this.getGameFormat() === constants.GAME_FORMAT_RANKED &&
-            ratingInfo.finalRatings[player] !== null) {
+        if (this.getGameFormat() === GameFormat.Ranked && ratingInfo.finalRatings[player] !== null) {
             info.finalRating = getRating(ratingInfo.finalRatings[player]);
         }
         return info;
@@ -1245,10 +1199,11 @@ export class ReplayParser extends EventEmitter {
         }
         const winner = this.data.result === 2 ? null : this.data.result;
 
-        if (END_CONDITIONS[this.data.endCondition] === undefined) {
+        const endCondition: EndCondition | undefined =
+            Object.values(EndCondition).find(x => this.data.endCondition === x);
+        if (endCondition === undefined) {
             throw new DataError(`Unknown end condition: ${this.data.endCondition}`);
         }
-        const endCondition = END_CONDITIONS[this.data.endCondition];
 
         if (DRAW_END_CONDITIONS.includes(endCondition)) {
             if (winner !== null) {

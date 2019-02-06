@@ -1,4 +1,4 @@
-import constants from './constants';
+import * as constants from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { GameState } from './gameState';
 import { ReplayParser } from './replayParser';
