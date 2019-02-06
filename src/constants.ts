@@ -1,4 +1,4 @@
-module.exports = Object.freeze({
+export default Object.freeze({
     GAME_FORMAT_RANKED: Symbol.for('ranked'),
     GAME_FORMAT_VERSUS_BOT: Symbol.for('versusBot'),
     GAME_FORMAT_VERSUS: Symbol.for('versus'),

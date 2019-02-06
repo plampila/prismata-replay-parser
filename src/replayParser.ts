@@ -1,13 +1,13 @@
-const assert = require('assert');
-const EventEmitter = require('events').EventEmitter;
-const timsort = require('timsort');
+import { strict as assert } from 'assert';
+import { EventEmitter } from 'events';
+import * as timsort from 'timsort';
 
-const constants = require('./constants');
-const { DataError, InvalidStateError, NotImplementedError } = require('./customErrors');
-const GameState = require('./gameState');
-const {
+import constants from './constants';
+import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
+import { GameState } from './gameState';
+import {
     deepClone, parseResources, targetingIsUseful, blocking, frozen, purchasedThisTurn, validTarget
-} = require('./util');
+} from './util';
 
 const GAME_FORMATS = {
     200: constants.GAME_FORMAT_RANKED,
@@ -30,26 +30,26 @@ const DRAW_END_CONDITIONS = [constants.END_CONDITION_REPETITION,
     constants.END_CONDITION_DOUBLE_DISCONNECT, constants.END_CONDITION_DRAW];
 
 const ACTION_TO_GAME_STATE_METHOD = {
-    [constants.ACTION_ASSIGN_DEFENSE]: 'assignDefense',
-    [constants.ACTION_CANCEL_ASSIGN_DEFENSE]: 'cancelAssignDefense',
-    [constants.ACTION_CANCEL_PURCHASE]: 'cancelPurchase',
-    [constants.ACTION_CANCEL_USE_ABILITY]: 'cancelUseAbility',
-    [constants.ACTION_ASSIGN_ATTACK]: 'assignAttack',
-    [constants.ACTION_CANCEL_ASSIGN_ATTACK]: 'cancelAssignAttack',
+    [constants.ACTION_ASSIGN_DEFENSE.toString()]: 'assignDefense',
+    [constants.ACTION_CANCEL_ASSIGN_DEFENSE.toString()]: 'cancelAssignDefense',
+    [constants.ACTION_CANCEL_PURCHASE.toString()]: 'cancelPurchase',
+    [constants.ACTION_CANCEL_USE_ABILITY.toString()]: 'cancelUseAbility',
+    [constants.ACTION_ASSIGN_ATTACK.toString()]: 'assignAttack',
+    [constants.ACTION_CANCEL_ASSIGN_ATTACK.toString()]: 'cancelAssignAttack',
 };
 
 const ACTION_TO_GAME_STATE_UNIT_TEST_METHOD = {
-    [constants.ACTION_ASSIGN_DEFENSE]: 'canAssignDefense',
-    [constants.ACTION_CANCEL_ASSIGN_DEFENSE]: 'canCancelAssignDefense',
-    [constants.ACTION_CANCEL_PURCHASE]: 'canCancelPurchase',
-    [constants.ACTION_ASSIGN_ATTACK]: 'canAssignAttack',
-    [constants.ACTION_CANCEL_ASSIGN_ATTACK]: 'canCancelAssignAttack',
-    [constants.ACTION_USE_ABILITY]: 'canUseAbility',
-    [constants.ACTION_CANCEL_USE_ABILITY]: 'canCancelUseAbility',
+    [constants.ACTION_ASSIGN_DEFENSE.toString()]: 'canAssignDefense',
+    [constants.ACTION_CANCEL_ASSIGN_DEFENSE.toString()]: 'canCancelAssignDefense',
+    [constants.ACTION_CANCEL_PURCHASE.toString()]: 'canCancelPurchase',
+    [constants.ACTION_ASSIGN_ATTACK.toString()]: 'canAssignAttack',
+    [constants.ACTION_CANCEL_ASSIGN_ATTACK.toString()]: 'canCancelAssignAttack',
+    [constants.ACTION_USE_ABILITY.toString()]: 'canUseAbility',
+    [constants.ACTION_CANCEL_USE_ABILITY.toString()]: 'canCancelUseAbility',
 };
 
 function sortShiftClickMatches(action, units) {
-    function sortUnits(rules, offset) {
+    function sortUnits(rules, offset?: number) {
         if (offset < 0) {
             offset = undefined;
         }
@@ -118,7 +118,7 @@ function sortShiftClickMatches(action, units) {
     case constants.ACTION_CANCEL_PURCHASE:
         break;
     default:
-        throw new Error('Unsupported action.', action);
+        throw new Error(`Unsupported action: ${action}`);
     }
     return units;
 }
@@ -202,7 +202,7 @@ function parseDeckAndInitInfo(data) {
         throw new DataError('Init info missing.');
     }
 
-    const info = {};
+    const info: any = {};
     if (data.versionInfo.serverVersion <= 153) {
         info.baseSets = [data.deckInfo.whiteBase, data.deckInfo.blackBase];
         info.randomSets = [data.deckInfo.whiteDominion, data.deckInfo.blackDominion];
@@ -281,30 +281,31 @@ function parseDeckAndInitInfo(data) {
     return info;
 }
 
-class ReplayParser extends EventEmitter {
+export class ReplayParser extends EventEmitter {
+    private readonly data: any;
+    public readonly state: GameState = new GameState();
+    private inConfirmPhase: boolean = false;
+    private inDamagePhase: boolean = false;
+    private targetingUnits: any[] = [];
+
+    private undoSnapshots: any = null;
+    private combinedAction: any = null;
+    private startTurnSnapshot: any = null;
+    private endDefenseSnapshot: any = null;
+    private endActionSnapshot: any = null;
+
     constructor(replayData) {
         super();
 
         if (Buffer.isBuffer(replayData)) {
             this.data = JSON.parse(replayData.toString());
-        } else if (typeof replayData === 'string' || replayData instanceof String) {
+        } else if (typeof replayData === 'string') {
             this.data = JSON.parse(replayData);
         } else if (replayData !== null && typeof replayData === 'object') {
             this.data = replayData;
         } else {
             throw new Error('Invalid replay data.');
         }
-
-        this.state = new GameState();
-        this.inConfirmPhase = false;
-        this.inDamagePhase = false;
-        this.targetingUnits = [];
-
-        this.undoSnapshots = null;
-        this.combinedAction = null;
-        this.startTurnSnapshot = null;
-        this.endDefenseSnapshot = null;
-        this.endActionSnapshot = null;
     }
 
     getSnapshot() {
@@ -481,7 +482,7 @@ class ReplayParser extends EventEmitter {
         return { action: constants.ACTION_USE_ABILITY, unit };
     }
 
-    runAction(action, data) {
+    runAction(action: symbol, data?: any) {
         if (!action) {
             throw new Error('No action given.');
         }
@@ -527,7 +528,7 @@ class ReplayParser extends EventEmitter {
                 throw new DataError('Action requires a unit.', action);
             }
 
-            this.state[ACTION_TO_GAME_STATE_METHOD[action]](data.unit);
+            this.state[ACTION_TO_GAME_STATE_METHOD[action.toString()]](data.unit);
 
             if (action === constants.ACTION_ASSIGN_ATTACK && !data.unit.undefendable &&
                 !this.state.blockers(this.state.villain()).some(x => !x.assignedAttack)) {
@@ -607,7 +608,7 @@ class ReplayParser extends EventEmitter {
 
     runTargetClick(clickedUnit, shiftClick) {
         assert(!this.state.inDefensePhase, 'In defense phase.');
-        assert(!this.state.inConfirmPhase, 'In confirm phase.');
+        assert(!this.inConfirmPhase, 'In confirm phase.');
         assert(this.combinedAction, 'Not combined action.');
 
         if (this.targetingUnits.includes(clickedUnit)) {
@@ -656,7 +657,7 @@ class ReplayParser extends EventEmitter {
                     throw new DataError('Unknown target action.', targetAction);
                 }
             });
-            timsort.sort(targets, (a, b) => b.toughness - a.toughness);
+            timsort.sort<any>(targets, (a, b) => b.toughness - a.toughness);
         } else {
             targets = [clickedUnit];
         }
@@ -733,7 +734,7 @@ class ReplayParser extends EventEmitter {
         } else if (action === constants.ACTION_CANCEL_ASSIGN_DEFENSE &&
             unit.assignedAttack < unit.toughness) {
             this.addUndoSnapshot();
-        } else if ((ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action] &&
+        } else if ((ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action.toString()] &&
             action !== constants.ACTION_CANCEL_PURCHASE) ||
             action === constants.ACTION_SELECT_FOR_TARGETING) {
             if (!this.combinedAction) {
@@ -861,7 +862,7 @@ class ReplayParser extends EventEmitter {
         this.runAction(action, { unit: matching[0] });
         matching.slice(1).some(x => {
             if (action !== constants.ACTION_SELECT_FOR_TARGETING &&
-                !this.state[ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action]](x)) {
+                !this.state[ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action.toString()]](x)) {
                 return true;
             }
             this.runAction(action, { unit: x });
@@ -1039,7 +1040,7 @@ class ReplayParser extends EventEmitter {
             if (!obj.displayRating && (!obj.score || !obj.score[23])) {
                 return null;
             }
-            const rating = {};
+            const rating: any = {};
             rating.value = formatRating(obj.displayRating ? obj.displayRating : obj.score[23]);
             if (obj.tier !== undefined) {
                 rating.tier = obj.tier;
@@ -1059,7 +1060,7 @@ class ReplayParser extends EventEmitter {
             throw new DataError('Rating info missing.');
         }
 
-        const info = {};
+        const info: any = {};
 
         if (this.getServerVersion() <= 153) {
             info.name = playerInfo.playerNames[player];
@@ -1110,7 +1111,7 @@ class ReplayParser extends EventEmitter {
     getDeck(player) {
         const info = parseDeckAndInitInfo(this.data);
 
-        const deck = {
+        const deck: any = {
             baseSet: info.baseSets[player].map(x => Array.isArray(x) ? x[0] : x),
             randomSet: info.randomSets[player].map(x => Array.isArray(x) ? x[0] : x),
         };
@@ -1135,7 +1136,7 @@ class ReplayParser extends EventEmitter {
     getStartPosition(player) {
         const info = parseDeckAndInitInfo(this.data);
 
-        const startPosition = {
+        const startPosition: any = {
             units: {},
         };
 
@@ -1188,5 +1189,3 @@ class ReplayParser extends EventEmitter {
         };
     }
 }
-
-module.exports = ReplayParser;

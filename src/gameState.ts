@@ -1,11 +1,11 @@
-const assert = require('assert');
-const EventEmitter = require('events').EventEmitter;
-const timsort = require('timsort');
+import { strict as assert } from 'assert';
+import { EventEmitter } from 'events';
+import * as timsort from 'timsort';
 
-const { InvalidStateError, DataError, NotImplementedError } = require('./customErrors');
-const {
+import { InvalidStateError, DataError, NotImplementedError } from './customErrors';
+import {
     blocking, deepClone, frozen, purchasedThisTurn, validTarget, parseResources
-} = require('./util');
+} from './util';
 
 const UNIT_ATTRIBUTE_SUPPORT = {
     // Basic info
@@ -83,17 +83,17 @@ const DEFAULT_PROPERTIES = {
     undefendable: false,
 };
 
-class GameState extends EventEmitter {
+export class GameState extends EventEmitter {
+    public deck: any = null;
+    private turnNumber: number | null = null;
+    public activePlayer: number | null = null;
+    public inDefensePhase: boolean | null = null;
+    private supplies: any = null;
+    private resources: any = null;
+    public units: any[] = [];
+
     constructor() {
         super();
-
-        this.deck = null;
-        this.turnNumber = null;
-        this.activePlayer = null;
-        this.inDefensePhase = null;
-        this.supplies = null;
-        this.resources = null;
-        this.units = [];
     }
 
     // Helpers
@@ -105,7 +105,7 @@ class GameState extends EventEmitter {
         return this.resources[player].attack;
     }
 
-    slate(player) {
+    slate(player?: number) {
         return this.units
             .filter(x => !x.destroyed && (player === undefined || x.player === player));
     }
@@ -206,7 +206,7 @@ class GameState extends EventEmitter {
         }
     }
 
-    constructUnit(unitData, buildTime, player = this.activePlayer, lifespan) {
+    constructUnit(unitData, buildTime?: number, player: number = this.activePlayer, lifespan?: number) {
         Object.keys(unitData).forEach(key => {
             if (UNIT_ATTRIBUTE_SUPPORT[key] === undefined) {
                 throw new DataError('Unknown unit attribute.', key);
@@ -673,7 +673,7 @@ class GameState extends EventEmitter {
             throw new InvalidStateError('Not purchased this turn.', unit);
         }
 
-        return !this.buyScript || this.canReverseScript(unit, unit.buyScript);
+        return !unit.buyScript || this.canReverseScript(unit, unit.buyScript);
     }
 
     cancelPurchase(unit) {
@@ -692,7 +692,7 @@ class GameState extends EventEmitter {
         unit.destroyed = true;
     }
 
-    canUseAbility(unit, target) {
+    canUseAbility(unit, target?) {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit);
         if (!unit.abilityScript && !unit.targetAction) {
@@ -746,7 +746,7 @@ class GameState extends EventEmitter {
         }
     }
 
-    useAbility(unit, target) {
+    useAbility(unit, target?) {
         if (!this.canUseAbility(unit, target)) {
             throw new InvalidStateError('Unavailable action.', { unit, target });
         }
@@ -992,7 +992,7 @@ class GameState extends EventEmitter {
                 }
             });
         }
-        if (this.sacrificed) {
+        if (unit.sacrificed) {
             throw new InvalidStateError('Sacrificed unit', unit);
         }
 
@@ -1052,5 +1052,3 @@ class GameState extends EventEmitter {
         this.units = deepClone(snapshot.units);
     }
 }
-
-module.exports = GameState;

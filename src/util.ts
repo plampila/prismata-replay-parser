@@ -1,6 +1,6 @@
-const { DataError } = require('./customErrors');
+import { DataError } from './customErrors';
 
-module.exports.deepClone = function (o) {
+export function deepClone(o: any) {
     if (o === undefined || o === null || typeof(o) !== 'object') {
         return o;
     }
@@ -12,13 +12,12 @@ module.exports.deepClone = function (o) {
     return temp;
 };
 
-function blocking(unit) {
+export function blocking(unit) {
     return (!unit.destroyed && !unit.sacrificed && !unit.delay && unit.defaultBlocking &&
         !unit.abilityUsed) === true;
 }
-module.exports.blocking = blocking;
 
-module.exports.purchasedThisTurn = function (unit) {
+export function purchasedThisTurn(unit) {
     if (unit.destroyed || !unit.purchased) {
         return false;
     }
@@ -28,7 +27,7 @@ module.exports.purchasedThisTurn = function (unit) {
     return unit.delay === unit.buildTime;
 };
 
-module.exports.frozen = function (unit) {
+export function frozen(unit) {
     return !unit.destroyed && unit.disruption >= unit.toughness;
 };
 
@@ -79,7 +78,7 @@ function validChillTarget(unit) {
     return true;
 }
 
-module.exports.validTarget = function (unit, targetAction, condition) {
+export function validTarget(unit, targetAction, condition) {
     switch (targetAction) {
     case 'disrupt':
         return validChillTarget(unit);
@@ -93,7 +92,7 @@ module.exports.validTarget = function (unit, targetAction, condition) {
     }
 };
 
-module.exports.parseResources = function (resources) {
+export function parseResources(resources) {
     function count(type) {
         return (resources.match(new RegExp(type, 'g')) || []).length;
     }
@@ -113,7 +112,7 @@ module.exports.parseResources = function (resources) {
     };
 };
 
-module.exports.targetingIsUseful = function (units, target) {
+export function targetingIsUseful(units, target) {
     switch (units[0].targetAction) {
     case 'disrupt':
         // Bug in the game: Should be taking existing freeze into account

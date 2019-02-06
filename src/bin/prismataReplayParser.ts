@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-const assert = require('assert');
-const fs = require('fs');
-const minimist = require('minimist');
-const zlib = require('zlib');
+import { strict as assert } from 'assert';
+import * as fs from 'fs';
+import minimist from 'minimist';
+import * as zlib from 'zlib';
 
-const { constants, ReplayParser, NotImplementedError } = require('..');
+import { constants, ReplayParser, NotImplementedError } from '..';
 
 function loadSync(file) {
     if (file.endsWith('.gz')) {
