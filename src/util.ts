@@ -99,17 +99,18 @@ export function parseResources(resources: string | number): IResources {
     }
 
     // Pure gold might be given as a number instead of a string.
-    if (typeof resources === 'number') {
-        resources = String(resources);
+    let res = resources;
+    if (typeof res === 'number') {
+        res = String(resources);
     }
 
     return {
-        gold: parseInt(resources, 10) || 0,
-        green: count(resources, 'G'),
-        blue: count(resources, 'B'),
-        red: count(resources, 'C'),
-        energy: count(resources, 'H'),
-        attack: count(resources, 'A'),
+        gold: parseInt(res, 10) || 0,
+        green: count(res, 'G'),
+        blue: count(res, 'B'),
+        red: count(res, 'C'),
+        energy: count(res, 'H'),
+        attack: count(res, 'A'),
     };
 }
 

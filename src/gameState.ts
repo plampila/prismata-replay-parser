@@ -30,7 +30,7 @@ export interface IResources {
 }
 
 const UNIT_ATTRIBUTE_SUPPORT: {
-    [attribute: string]: boolean;
+    [attribute: string]: boolean | undefined;
 } = {
     // Basic info
     buildTime: true,
@@ -86,7 +86,7 @@ const UNIT_ATTRIBUTE_SUPPORT: {
 };
 
 const RARITIES: {
-    [name: string]: number;
+    [name: string]: number | undefined;
 } = {
     trinket: 20,
     normal: 10,
@@ -113,7 +113,7 @@ const DEFAULT_PROPERTIES: {
 
 export interface IGameStateSnapshot {
     deck: Deck;
-    turnNumber: number | null;
+    turnNumber: number;
     activePlayer: Player;
     inDefensePhase: boolean | null;
     supplies: ISupplies;
@@ -123,7 +123,7 @@ export interface IGameStateSnapshot {
 
 export class GameState extends EventEmitter {
     public deck: Deck | null = null;
-    private turnNumber: number | null = null;
+    private turnNumber: number = 0;
     public activePlayer: Player = Player.First;
     public inDefensePhase: boolean | null = null;
     private supplies: [ISupplies, ISupplies] = [{}, {}];
@@ -178,7 +178,7 @@ export class GameState extends EventEmitter {
 
         const totalDefense = this.blockers(this.villain())
             .filter(x => !x.assignedAttack)
-            .reduce((t, x) => t + x.toughness, 0);
+            .reduce((t, x) => t + x.toughness, 0); // tslint:disable-line:restrict-plus-operands
         return this.attack() >= Math.max(totalDefense, 1);
     }
 
@@ -259,12 +259,10 @@ export class GameState extends EventEmitter {
 
         const unit = Object.create(unitData);
         unit.player = player;
-        if (buildTime === undefined) {
-            buildTime = unit.buildTime;
-        }
-        if (buildTime !== 0) {
+        const delay = buildTime !== undefined ? buildTime : unit.buildTime;
+        if (delay !== 0) {
             unit.building = true;
-            unit.delay = buildTime;
+            unit.delay = delay;
         }
         if (lifespan) {
             unit.lifespan = lifespan;
@@ -588,9 +586,6 @@ export class GameState extends EventEmitter {
     public startTurn(): void {
         this.activePlayer = this.villain();
         if (this.activePlayer === Player.First) {
-            if (this.turnNumber === null) {
-                throw new Error('Turn number not set.');
-            }
             this.turnNumber++;
         }
         this.emit('turnStarted', this.turnNumber, this.activePlayer);
@@ -843,7 +838,7 @@ export class GameState extends EventEmitter {
                 throw new InvalidStateError('Target already frozen.', target);
             }
 
-            target.disruption = target.disruption + unit.targetAmount;
+            target.disruption += unit.targetAmount; // tslint:disable-line:restrict-plus-operands
             break;
         case 'snipe':
             if (target.sacrificed) {
@@ -1054,7 +1049,7 @@ export class GameState extends EventEmitter {
 
     // Public
     public init(info: any): void {
-        if (this.turnNumber !== null) {
+        if (this.turnNumber !== 0) {
             throw new InvalidStateError('Already initialized.');
         }
 

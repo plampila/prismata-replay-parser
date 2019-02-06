@@ -6,15 +6,53 @@
     ],
     "jsRules": {},
     "rules": {
-        "quotemark": {
-            "options": ["single", "avoid-template"]
-        },
-        "max-classes-per-file": false,
-        "object-literal-sort-keys": false,
         "arrow-parens": {
             "options": "ban-single-arg-parens"
         },
+        "await-promise": true,
+        "binary-expression-operand-order": true,
+        "deprecation": true,
+        "encoding": true,
+        "eofline": true,
+        "file-name-casing": {
+            "options": "camel-case"
+        },
+        "max-classes-per-file": false,
         "member-ordering": false,
+        "no-dynamic-delete": true,
+        "no-floating-promises": true,
+        "no-for-in-array": true,
+        "no-inferred-empty-object-type": true,
+        "no-invalid-this": true,
+        "no-irregular-whitespace": true,
+        "no-non-null-assertion": true,
+        "no-parameter-reassignment": true,
+        "no-require-imports": true,
+        "no-switch-case-fall-through": true,
+        "no-unbound-method": true,
+        "no-unnecessary-class": true,
+        "no-unnecessary-type-assertion": true,
+        "no-void-expression": true,
+        "number-literal-format": true,
+        "object-literal-sort-keys": false,
+        "prefer-function-over-method": true,
+        "prefer-method-signature": true,
+        "prefer-readonly": true,
+        "prefer-switch": true,
+        "prefer-template": true,
+        "prefer-while": true,
+        "promise-function-async": true,
+        "restrict-plus-operands": true,
+        "return-undefined": true,
+        "quotemark": {
+            "options": ["single", "avoid-template"]
+        },
+        "strict-type-predicates": true,
+        "switch-default": true,
+        "switch-final-break": {
+            "options": "always"
+        },
+        "triple-equals": true,
         "typedef": {
             "options": [
                 "array-destructuring",
@@ -24,7 +62,11 @@
                 "parameter",
                 "property-declaration"
             ]
-        }
+        },
+        "variable-name": {
+            "options": ["ban-keywords", "check-format"]
+        },
+        "unnecessary-constructor": true
     },
     "rulesDirectory": []
 }

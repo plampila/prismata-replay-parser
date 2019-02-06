@@ -10,6 +10,7 @@ import * as zlib from 'zlib';
 
 import { NotImplementedError, ReplayParser } from '..';
 import { ActionType, EndCondition, GameFormat, ReplayCommandType } from '../constants';
+import { Player } from '../gameState';
 
 function loadSync(file: string): Buffer {
     if (file.endsWith('.gz')) {
@@ -68,7 +69,7 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
         });
     }
 
-    state.on('turnStarted', (turnNumber, player) => {
+    state.on('turnStarted', (turnNumber: number, player: Player) => {
         log(0, `P${player + 1} turn ${turnNumber} started.`);
     });
 
@@ -93,38 +94,38 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     const result = parser.getResult();
     switch (result.endCondition) {
     case EndCondition.Resign:
-        if (result.winner === null) {
+        if (result.winner === undefined) {
             throw new Error('Winner not set.');
         }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by resignation.`);
         break;
     case EndCondition.Elimination:
-        if (result.winner === null) {
+        if (result.winner === undefined) {
             throw new Error('Winner not set.');
         }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by elimination.`);
         break;
     case EndCondition.Defeated:
-        if (result.winner === null) {
+        if (result.winner === undefined) {
             throw new Error('Winner not set.');
         }
         console.info(`P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1}.`);
         break;
     case EndCondition.Repetition:
-        assert(result.winner === null);
+        assert(result.winner === undefined);
         console.info('Game ended in a draw by repetition.');
         break;
     case EndCondition.Disconnect:
-        if (result.winner === null) {
+        if (result.winner === undefined) {
             throw new Error('Winner not set.');
         }
         console.info(
             `P${result.winner + 1} defeated P${(result.winner + 1) % 2 + 1} by disconnect.`);
         break;
     case EndCondition.DoubleDisconnect:
-        assert(result.winner === null);
+        assert(result.winner === undefined);
         console.info('Game ended in a draw by double disconnect.');
         break;
     default:
@@ -202,5 +203,8 @@ async function main(): Promise<void> {
 
 if (!module.parent) {
     main()
-        .catch(console.error);
+        .catch(e => {
+            console.error(e);
+            process.exit(1);
+        });
 }

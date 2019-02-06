@@ -44,7 +44,7 @@ const ACTION_TO_GAME_STATE_UNIT_TEST_METHOD: {
 function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
     function sortUnits(rules: string[], offset?: number): void {
         if (offset !== undefined && offset < 0) {
-            offset = undefined;
+            throw new Error('Invalid offset.');
         }
         timsort.sort(units, (a: Unit, b: Unit) => {
             for (const rule of rules) {
@@ -55,8 +55,8 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
                     aVal = a.delay ? a.delay - 1 : 0;
                     bVal = b.delay ? b.delay - 1 : 0;
                 } else if (key === 'lifespan+delay') {
-                    aVal = a.lifespan ? a.lifespan + (a.delay || 0) : 0;
-                    bVal = b.lifespan ? b.lifespan + (b.delay || 0) : 0;
+                    aVal = a.lifespan ? a.lifespan + (a.delay || 0) : 0; // tslint:disable-line:restrict-plus-operands
+                    bVal = b.lifespan ? b.lifespan + (b.delay || 0) : 0; // tslint:disable-line:restrict-plus-operands
                 } else {
                     if (key === 'lifespan') {
                         aVal = a[key] || Infinity;
@@ -101,8 +101,9 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
         if (units[0].defaultBlocking) {
             // Sort blockers and non-blockers separately
             sortUnits(['<delay', '<abilityUsed', '<lifespan', '>toughness', '>charge']);
+            const offset = units.findIndex(x => x.abilityUsed || x.delay);
             sortUnits(['<assignedAttack', '<delay-1', '>lifespan+delay', '<toughness', '>charge'],
-                units.findIndex(x => x.abilityUsed || x.delay));
+                      offset < 0 ? undefined : offset);
         } else {
             sortUnits(['<assignedAttack', '<delay-1', '>lifespan+delay', '<toughness', '>charge']);
         }
@@ -300,7 +301,7 @@ interface ITimeControl {
 
 interface IResult {
     endCondition: EndCondition;
-    winner: Player;
+    winner?: Player;
 }
 
 export class ReplayParser extends EventEmitter {
@@ -431,6 +432,8 @@ export class ReplayParser extends EventEmitter {
                             return { action: ActionType.CancelAssignAttack, unit };
                         }
                         return { action: ActionType.CancelUseAbility, unit: source };
+                    default:
+                        throw new DataError('Unknown targetAction.', source.targetAction);
                     }
                 }
             }
@@ -615,10 +618,10 @@ export class ReplayParser extends EventEmitter {
         case ActionType.Revert:
             if (this.endActionSnapshot) {
                 this.restoreSnapshot(this.endActionSnapshot);
-                assert(this.endActionSnapshot === null);
+                assert(this.endActionSnapshot === null); // tslint:disable-line:strict-type-predicates
             } else if (this.endDefenseSnapshot) {
                 this.restoreSnapshot(this.endDefenseSnapshot);
-                assert(this.endDefenseSnapshot === null);
+                assert(this.endDefenseSnapshot === null); // tslint:disable-line:strict-type-predicates
             } else {
                 if (this.startTurnSnapshot === null) {
                     throw new Error('Start turn snapshot not set.');
@@ -1197,7 +1200,7 @@ export class ReplayParser extends EventEmitter {
         if (this.data.result < 0 || this.data.result > 2) {
             throw new DataError('Unknown result.', this.data.result);
         }
-        const winner = this.data.result === 2 ? null : this.data.result;
+        const winner = this.data.result === 2 ? undefined : this.data.result;
 
         const endCondition: EndCondition | undefined =
             Object.values(EndCondition).find(x => this.data.endCondition === x);
@@ -1206,11 +1209,11 @@ export class ReplayParser extends EventEmitter {
         }
 
         if (DRAW_END_CONDITIONS.includes(endCondition)) {
-            if (winner !== null) {
+            if (winner !== undefined) {
                 throw new DataError('Expected draw with end condition.', endCondition);
             }
         } else {
-            if (winner === null) {
+            if (winner === undefined) {
                 throw new DataError('Expected non-draw with end condition.', endCondition);
             }
         }
