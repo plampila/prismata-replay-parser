@@ -7,12 +7,27 @@ import {
     blocking, deepClone, frozen, parseResources, purchasedThisTurn, validTarget,
 } from './util';
 
+export enum Player {
+    First = 0,
+    Second = 1,
+}
+
 export type Unit = any;
 export type Blueprint = any;
 export type Deck = any;
-export type Supplies = any;
-export type Resources = any;
-export type Player = number | null;
+
+export interface ISupplies {
+    [unitName: string]: number;
+}
+
+export interface IResources {
+    gold: number;
+    green: number;
+    blue: number;
+    red: number;
+    energy: number;
+    attack: number;
+}
 
 const UNIT_ATTRIBUTE_SUPPORT: {
     [attribute: string]: boolean;
@@ -101,18 +116,18 @@ export interface IGameStateSnapshot {
     turnNumber: number | null;
     activePlayer: Player;
     inDefensePhase: boolean | null;
-    supplies: Supplies;
-    resources: Resources;
+    supplies: ISupplies;
+    resources: IResources;
     units: Unit[];
 }
 
 export class GameState extends EventEmitter {
     public deck: Deck | null = null;
     private turnNumber: number | null = null;
-    public activePlayer: Player = null;
+    public activePlayer: Player = Player.First;
     public inDefensePhase: boolean | null = null;
-    private supplies: Supplies = null;
-    private resources: Resources = null;
+    private supplies: [ISupplies, ISupplies] = [{}, {}];
+    private resources: [IResources, IResources] = [parseResources('0'), parseResources('0')];
     public units: Unit[] = [];
     [method: string]: any; // FIXME: remove
 
@@ -122,31 +137,18 @@ export class GameState extends EventEmitter {
 
     // Helpers
     public villain(): Player {
-        if (this.activePlayer === null) {
-            throw new Error('Active player not set.');
-        }
-        return (this.activePlayer + 1) % 2;
+        return this.activePlayer === Player.First ? Player.Second : Player.First;
     }
 
     public attack(player: Player = this.activePlayer): number {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
         return this.resources[player].attack;
     }
 
     public slate(player?: Player): Unit[] {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
-        return this.units
-            .filter(x => !x.destroyed && (player === undefined || x.player === player));
+        return this.units.filter(x => !x.destroyed && (player === undefined || x.player === player));
     }
 
     public blockers(player: Player = this.activePlayer): Unit[] {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
         return this.slate(player).filter(x => blocking(x) && !frozen(x));
     }
 
@@ -244,9 +246,6 @@ export class GameState extends EventEmitter {
 
     private constructUnit(unitData: any, buildTime?: number, player: Player = this.activePlayer,
                           lifespan?: number): Unit {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
         Object.keys(unitData).forEach(key => {
             if (UNIT_ATTRIBUTE_SUPPORT[key] === undefined) {
                 throw new DataError('Unknown unit attribute.', key);
@@ -285,7 +284,7 @@ export class GameState extends EventEmitter {
         this.emit('unitDestroyed', unit, reason);
     }
 
-    private initPlayer(player: number, cards: any, baseSet: any, randomSet: any, infiniteSupplies: boolean): void {
+    private initPlayer(player: Player, cards: any, baseSet: any, randomSet: any, infiniteSupplies: boolean): void {
         baseSet.concat(randomSet).forEach((name: any) => {
             if (Array.isArray(name)) {
                 if (name[1] <= 0) {
@@ -312,9 +311,6 @@ export class GameState extends EventEmitter {
     }
 
     private addAttack(amount: number, player: Player = this.activePlayer): void {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
         assert(amount >= 0, 'Amount can not be negative.');
 
         if (amount === 0) {
@@ -342,9 +338,6 @@ export class GameState extends EventEmitter {
     }
 
     private removeAttack(amount: number, player: Player = this.activePlayer): void {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
         assert(amount >= 0, 'Amount can not be negative.');
 
         if (this.resources[player].attack < amount) {
@@ -354,40 +347,33 @@ export class GameState extends EventEmitter {
     }
 
     private addResources(resources: string, player: Player = this.activePlayer): void {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
-        assert(player === 0 || player === 1, 'Invalid player.');
-
         const parsed = parseResources(resources);
-        Object.keys(this.resources[player]).filter(key => key !== 'attack').forEach(key => {
-            this.resources[player][key] += parsed[key];
-        });
+        this.resources[player].gold += parsed.gold;
+        this.resources[player].green += parsed.green;
+        this.resources[player].blue += parsed.blue;
+        this.resources[player].red += parsed.red;
+        this.resources[player].energy += parsed.energy;
         this.addAttack(parsed.attack);
     }
 
     private removeResources(resources: string, player: Player = this.activePlayer): void {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
-        assert(player === 0 || player === 1, 'Invalid player.');
-
         const parsed = parseResources(resources);
-        Object.keys(this.resources[player]).filter(key => key !== 'attack').forEach(key => {
-            this.resources[player][key] -= parsed[key];
-        });
+        this.resources[player].gold -= parsed.gold;
+        this.resources[player].green -= parsed.green;
+        this.resources[player].blue -= parsed.blue;
+        this.resources[player].red -= parsed.red;
+        this.resources[player].energy -= parsed.energy;
         this.removeAttack(parsed.attack);
     }
 
     private canRemoveResources(resources: string, player: Player = this.activePlayer): boolean {
-        if (player === null) {
-            throw new Error('Player not set.');
-        }
-        assert(player === 0 || player === 1, 'Invalid player.');
-
         const parsed = parseResources(resources);
-        return !Object.keys(this.resources[player])
-            .some(key => this.resources[player][key] - parsed[key] < 0);
+        return this.resources[player].gold >= parsed.gold &&
+            this.resources[player].green >= parsed.green &&
+            this.resources[player].blue >= parsed.blue &&
+            this.resources[player].red >= parsed.red &&
+            this.resources[player].energy >= parsed.energy &&
+            this.resources[player].attack >= parsed.attack;
     }
 
     private sacrificeList(name: string, player: Player = this.activePlayer): Unit[] {
@@ -568,9 +554,6 @@ export class GameState extends EventEmitter {
     }
 
     private runEndTurn(): void {
-        if (this.activePlayer === null) {
-            throw new Error('Active player not set.');
-        }
         this.resources[this.activePlayer].blue = 0;
         this.resources[this.activePlayer].red = 0;
         this.resources[this.activePlayer].energy = 0;
@@ -604,7 +587,7 @@ export class GameState extends EventEmitter {
     // Actions
     public startTurn(): void {
         this.activePlayer = this.villain();
-        if (this.activePlayer === 0) {
+        if (this.activePlayer === Player.First) {
             if (this.turnNumber === null) {
                 throw new Error('Turn number not set.');
             }
@@ -687,9 +670,6 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Blueprint not found.');
         }
 
-        if (this.activePlayer === null) {
-            throw new Error('Active player not set.');
-        }
         if (!this.supplies[this.activePlayer][blueprint.name]) {
             return false;
         }
@@ -710,9 +690,6 @@ export class GameState extends EventEmitter {
         const blueprint = this.blueprintForName(name);
         assert(blueprint !== null);
 
-        if (this.activePlayer === null) {
-            throw new Error('Active player not set.');
-        }
         this.supplies[this.activePlayer][blueprint.name]--;
         assert(this.supplies[this.activePlayer][blueprint.name] >= 0);
 
@@ -1081,17 +1058,14 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Already initialized.');
         }
 
-        this.resources =
-            [parseResources(info.initResources[0]), parseResources(info.initResources[1])];
+        this.resources = [parseResources(info.initResources[0]), parseResources(info.initResources[1])];
         this.deck = info.deck.map((x: any) => Object.assign(Object.create(DEFAULT_PROPERTIES), x));
         this.supplies = [{}, {}];
-        this.initPlayer(0, info.initCards[0], info.baseSets[0], info.randomSets[0],
-            info.infiniteSupplies);
-        this.initPlayer(1, info.initCards[1], info.baseSets[1], info.randomSets[1],
-            info.infiniteSupplies);
+        this.initPlayer(Player.First, info.initCards[0], info.baseSets[0], info.randomSets[0], info.infiniteSupplies);
+        this.initPlayer(Player.Second, info.initCards[1], info.baseSets[1], info.randomSets[1], info.infiniteSupplies);
 
         this.turnNumber = 1;
-        this.activePlayer = 0;
+        this.activePlayer = Player.First;
         this.inDefensePhase = false;
         this.emit('turnStarted', this.turnNumber, this.activePlayer);
         this.runStartTurn();

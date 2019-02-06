@@ -1,5 +1,5 @@
 import { DataError } from './customErrors';
-import { Unit } from './gameState';
+import { IResources, Unit } from './gameState';
 
 export function deepClone<T>(o: any): T {
     if (o === undefined || o === null || typeof(o) !== 'object') {
@@ -93,8 +93,8 @@ export function validTarget(unit: Unit, targetAction: string, condition: any): b
     }
 }
 
-export function parseResources(resources: string | number): { [resource: string]: number } {
-    function count(str: string, type: string) {
+export function parseResources(resources: string | number): IResources {
+    function count(str: string, type: string): number {
         return (str.match(new RegExp(type, 'g')) || []).length;
     }
 
