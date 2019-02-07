@@ -135,7 +135,7 @@ export interface IGameStateSnapshot {
     deck: Deck;
     turnNumber: number;
     activePlayer: Player;
-    inDefensePhase: boolean | null;
+    inDefensePhase: boolean;
     supplies: ISupplies;
     resources: IResources;
     units: Unit[];
@@ -153,7 +153,7 @@ export class GameState extends EventEmitter {
     public deck: Deck = [];
     private turnNumber: number = 0;
     public activePlayer: Player = Player.First;
-    public inDefensePhase: boolean | null = null;
+    public inDefensePhase: boolean = false;
     private supplies: [ISupplies, ISupplies] = [{}, {}];
     private resources: [IResources, IResources] = [parseResources('0'), parseResources('0')];
     public units: Unit[] = [];
@@ -180,18 +180,18 @@ export class GameState extends EventEmitter {
         return this.slate(player).filter(x => blocking(x) && !frozen(x));
     }
 
-    public absorber(): Unit | null {
+    public absorber(): Unit | undefined {
         return this.slate(this.activePlayer)
             .find(x => blocking(x) && x.assignedAttack > 0 && x.assignedAttack < x.toughness);
     }
 
-    public breachAbsorber(): Unit | null {
+    public breachAbsorber(): Unit | undefined {
         const candidates = this.slate(this.villain()).filter(x => !blocking(x) &&
             x.assignedAttack > 0 && x.assignedAttack < x.toughness);
         if (candidates.length === 2 && candidates[0].sacrificed) {
             return candidates[1];
         }
-        return candidates.length > 0 ? candidates[0] : null;
+        return candidates.length > 0 ? candidates[0] : undefined;
     }
 
     public defensesOverran(): boolean {
@@ -224,9 +224,9 @@ export class GameState extends EventEmitter {
         return this.slate().find(x => x.targetedBy && x.targetedBy.includes(this.unitId(unit)));
     }
 
-    private unitId(unit: Unit): number | null {
+    private unitId(unit: Unit): number | undefined {
         const id = this.units.indexOf(unit);
-        return id >= 0 ? id : null;
+        return id >= 0 ? id : undefined;
     }
 
     private blueprintForName(name: string): IBlueprint | undefined {

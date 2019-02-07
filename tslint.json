@@ -26,6 +26,7 @@
         "no-invalid-this": true,
         "no-irregular-whitespace": true,
         "no-non-null-assertion": true,
+        "no-null-keyword": true,
         "no-parameter-reassignment": true,
         "no-require-imports": true,
         "no-switch-case-fall-through": true,

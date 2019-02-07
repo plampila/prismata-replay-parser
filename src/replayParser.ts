@@ -264,8 +264,8 @@ interface ISnapshot {
     inConfirmPhase: boolean;
     inDamagePhase: boolean;
     targetingUnits: Unit[];
-    endDefenseSnapshot: Snapshot | null;
-    endActionSnapshot: Snapshot | null;
+    endDefenseSnapshot?: Snapshot;
+    endActionSnapshot?: Snapshot;
     stateSnapshot: IGameStateSnapshot;
 }
 
@@ -273,8 +273,8 @@ class Snapshot implements ISnapshot {
     public readonly inConfirmPhase: boolean;
     public readonly inDamagePhase: boolean;
     public readonly targetingUnits: Unit[];
-    public readonly endDefenseSnapshot: Snapshot | null;
-    public readonly endActionSnapshot: Snapshot | null;
+    public readonly endDefenseSnapshot?: Snapshot;
+    public readonly endActionSnapshot?: Snapshot;
     public readonly stateSnapshot: IGameStateSnapshot;
 
     constructor(source: ISnapshot) {
@@ -319,10 +319,10 @@ export class ReplayParser extends EventEmitter {
     private targetingUnits: Unit[] = [];
 
     private undoSnapshots: Snapshot[] = [];
-    private combinedAction: boolean | null = null;
-    private startTurnSnapshot: Snapshot | null = null;
-    private endDefenseSnapshot: Snapshot | null = null;
-    private endActionSnapshot: Snapshot | null = null;
+    private combinedAction: boolean = false;
+    private startTurnSnapshot?: Snapshot;
+    private endDefenseSnapshot?: Snapshot;
+    private endActionSnapshot?: Snapshot;
 
     constructor(replayData: any) {
         super();
@@ -599,8 +599,8 @@ export class ReplayParser extends EventEmitter {
             this.stopCombinedAction();
             this.inConfirmPhase = false;
             this.state.startTurn();
-            this.endDefenseSnapshot = null;
-            this.endActionSnapshot = null;
+            this.endDefenseSnapshot = undefined;
+            this.endActionSnapshot = undefined;
             this.undoSnapshots = [];
             this.startTurnSnapshot = this.getSnapshot();
             break;
@@ -624,12 +624,12 @@ export class ReplayParser extends EventEmitter {
         case ActionType.Revert:
             if (this.endActionSnapshot) {
                 this.restoreSnapshot(this.endActionSnapshot);
-                assert(this.endActionSnapshot === null); // tslint:disable-line:strict-type-predicates
+                assert(this.endActionSnapshot === undefined); // tslint:disable-line:strict-type-predicates
             } else if (this.endDefenseSnapshot) {
                 this.restoreSnapshot(this.endDefenseSnapshot);
-                assert(this.endDefenseSnapshot === null); // tslint:disable-line:strict-type-predicates
+                assert(this.endDefenseSnapshot === undefined); // tslint:disable-line:strict-type-predicates
             } else {
-                if (this.startTurnSnapshot === null) {
+                if (this.startTurnSnapshot === undefined) {
                     throw new Error('Start turn snapshot not set.');
                 }
                 this.restoreSnapshot(this.startTurnSnapshot);
@@ -1025,8 +1025,8 @@ export class ReplayParser extends EventEmitter {
         this.undoSnapshots = [];
         this.combinedAction = false;
         this.startTurnSnapshot = this.getSnapshot();
-        this.endDefenseSnapshot = null;
-        this.endActionSnapshot = null;
+        this.endDefenseSnapshot = undefined;
+        this.endActionSnapshot = undefined;
     }
 
     // Publicly usable methods
@@ -1079,7 +1079,7 @@ export class ReplayParser extends EventEmitter {
 
         function getRating(obj: any): any {
             if (!obj.displayRating && (!obj.score || !obj.score[23])) {
-                return null;
+                return undefined;
             }
             const rating: any = {};
             rating.value = formatRating(obj.displayRating ? obj.displayRating : obj.score[23]);
