@@ -157,7 +157,6 @@ export class GameState extends EventEmitter {
     private supplies: [ISupplies, ISupplies] = [{}, {}];
     private resources: [IResources, IResources] = [parseResources('0'), parseResources('0')];
     public units: Unit[] = [];
-    [method: string]: any; // FIXME: remove
 
     constructor() {
         super();

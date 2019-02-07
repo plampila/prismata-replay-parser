@@ -18,28 +18,36 @@ const REPLAY_COMMANDS_WITH_IDS = [
     ReplayCommandType.ShiftClickBlueprint,
 ];
 
-const ACTION_TO_GAME_STATE_METHOD: {
-    [action: string]: string;
-} = {
-    [ActionType.AssignDefense.toString()]: 'assignDefense',
-    [ActionType.CancelAssignDefense.toString()]: 'cancelAssignDefense',
-    [ActionType.CancelPurchase.toString()]: 'cancelPurchase',
-    [ActionType.CancelUseAbility.toString()]: 'cancelUseAbility',
-    [ActionType.AssignAttack.toString()]: 'assignAttack',
-    [ActionType.CancelAssignAttack.toString()]: 'cancelAssignAttack',
-};
+const TESTABLE_ACTIONS = [
+    ActionType.AssignDefense,
+    ActionType.CancelAssignDefense,
+    ActionType.CancelPurchase,
+    ActionType.AssignAttack,
+    ActionType.CancelAssignAttack,
+    ActionType.UseAbility,
+    ActionType.CancelUseAbility,
+];
 
-const ACTION_TO_GAME_STATE_UNIT_TEST_METHOD: {
-    [action: string]: string;
-} = {
-    [ActionType.AssignDefense.toString()]: 'canAssignDefense',
-    [ActionType.CancelAssignDefense.toString()]: 'canCancelAssignDefense',
-    [ActionType.CancelPurchase.toString()]: 'canCancelPurchase',
-    [ActionType.AssignAttack.toString()]: 'canAssignAttack',
-    [ActionType.CancelAssignAttack.toString()]: 'canCancelAssignAttack',
-    [ActionType.UseAbility.toString()]: 'canUseAbility',
-    [ActionType.CancelUseAbility.toString()]: 'canCancelUseAbility',
-};
+function canExecuteAction(state: GameState, actionType: ActionType, unit: Unit): boolean {
+    switch (actionType) {
+    case ActionType.AssignDefense:
+        return state.canAssignDefense(unit);
+    case ActionType.CancelAssignDefense:
+        return state.canCancelAssignDefense(unit);
+    case ActionType.CancelPurchase:
+        return state.canCancelPurchase(unit);
+    case ActionType.AssignAttack:
+        return state.canAssignAttack(unit);
+    case ActionType.CancelAssignAttack:
+        return state.canCancelAssignAttack(unit);
+    case ActionType.UseAbility:
+        return state.canUseAbility(unit);
+    case ActionType.CancelUseAbility:
+        return state.canCancelUseAbility(unit);
+    default:
+        throw new Error(`Not testable action: ${actionType}`);
+    }
+}
 
 function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
     function sortUnits(rules: string[], offset?: number): void {
@@ -550,26 +558,56 @@ export class ReplayParser extends EventEmitter {
             }
             this.state.purchase(data.name);
             break;
-        case ActionType.AssignDefense:
-        case ActionType.CancelAssignDefense:
-        case ActionType.CancelPurchase:
-        case ActionType.CancelUseAbility:
-        case ActionType.AssignAttack:
-        case ActionType.CancelAssignAttack: {
+        case ActionType.AssignDefense: {
+            if (!data.unit) {
+                throw new DataError('Action requires a unit.', action);
+            }
+            this.state.assignDefense(data.unit);
+            break;
+        }
+        case ActionType.CancelAssignDefense: {
+            if (!data.unit) {
+                throw new DataError('Action requires a unit.', action);
+            }
+            this.state.cancelAssignDefense(data.unit);
+            break;
+        }
+        case ActionType.CancelPurchase: {
+            if (!data.unit) {
+                throw new DataError('Action requires a unit.', action);
+            }
+            this.state.cancelPurchase(data.unit);
+            break;
+        }
+        case ActionType.CancelUseAbility: {
             if (!data.unit) {
                 throw new DataError('Action requires a unit.', action);
             }
 
-            this.state[ACTION_TO_GAME_STATE_METHOD[action.toString()]](data.unit);
+            this.state.cancelUseAbility(data.unit);
 
-            if (action === ActionType.AssignAttack && !data.unit.undefendable &&
-                !this.state.blockers(this.state.villain()).some(x => !x.assignedAttack)) {
-                this.inDamagePhase = true;
-            }
-            if (action === ActionType.CancelUseAbility &&
-                data.unit.targetAction === 'disrupt' && !this.state.defensesOverran()) {
+            if (data.unit.targetAction === 'disrupt' && !this.state.defensesOverran()) {
                 this.inDamagePhase = false;
             }
+            break;
+        }
+        case ActionType.AssignAttack: {
+            if (!data.unit) {
+                throw new DataError('Action requires a unit.', action);
+            }
+
+            this.state.assignAttack(data.unit);
+
+            if (!data.unit.undefendable && !this.state.blockers(this.state.villain()).some(x => !x.assignedAttack)) {
+                this.inDamagePhase = true;
+            }
+            break;
+        }
+        case ActionType.CancelAssignAttack: {
+            if (!data.unit) {
+                throw new DataError('Action requires a unit.', action);
+            }
+            this.state.cancelAssignAttack(data.unit);
             break;
         }
         case ActionType.ProceedToDamage:
@@ -768,7 +806,7 @@ export class ReplayParser extends EventEmitter {
             }
         } else if (action === ActionType.CancelAssignDefense && unit.assignedAttack < unit.toughness) {
             this.addUndoSnapshot();
-        } else if ((ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action.toString()] && action !== ActionType.CancelPurchase) ||
+        } else if ((TESTABLE_ACTIONS.includes(action) && action !== ActionType.CancelPurchase) ||
                    action === ActionType.SelectForTargeting) {
             if (!this.combinedAction) {
                 this.addUndoSnapshot();
@@ -891,8 +929,7 @@ export class ReplayParser extends EventEmitter {
         }
         this.runAction(action, { unit: matching[0] });
         matching.slice(1).some(x => {
-            if (action !== ActionType.SelectForTargeting &&
-                !this.state[ACTION_TO_GAME_STATE_UNIT_TEST_METHOD[action.toString()]](x)) {
+            if (action !== ActionType.SelectForTargeting && !canExecuteAction(this.state, action, x)) {
                 return true;
             }
             this.runAction(action, { unit: x });
