@@ -18,10 +18,17 @@ export interface IBlueprint {
 
 export type Deck = IBlueprint[];
 
+/** Unit name, target (own or enemy), count, build time, lifespan */
+type ScriptCreateRule = [string, 'own' | 'enemy', number, number?, number?];
+
 interface IScript {
-    [action: string]: any;
+    create?: ScriptCreateRule[];
+    delay?: number;
+    receive?: string;
+    selfsac?: true;
 }
 
+/** Unit name and count */
 type SacrificeRule = [string, number];
 
 export interface ISupplies {
@@ -451,86 +458,71 @@ export class GameState extends EventEmitter {
     }
 
     private runScript(unit: Unit, script: IScript): void {
-        Object.keys(script).forEach(action => {
-            switch (action) {
-            case 'delay':
-                unit.delay = script[action];
-                break;
-            case 'receive':
-                this.addResources(script[action]);
-                break;
-            case 'create':
-                script[action].forEach((x: any) => {
-                    const blueprint = this.blueprintForName(x[0]);
-                    if (blueprint === undefined) {
-                        throw new DataError('Blueprint not found.', x[0]);
-                    }
-                    for (let i = 0; i < (x[2] || 1); i++) {
-                        const constructed = this.constructUnit(blueprint, x[3] === undefined ? 1 : x[3],
-                            x[1] === 'own' ? this.activePlayer : this.villain(), x[4]);
-                        constructed.constructedBy = this.unitId(unit);
-                        this.emit('unitConstructed', constructed, unit);
-                    }
-                });
-                break;
-            case 'selfsac':
-                unit.sacrificed = true;
-                break;
-            default:
-                throw new DataError('Unknown script action.', action);
-            }
-        });
+        if (script.create !== undefined) {
+            script.create.forEach(x => {
+                const blueprint = this.blueprintForName(x[0]);
+                if (blueprint === undefined) {
+                    throw new DataError('Blueprint not found.', x[0]);
+                }
+                for (let i = 0; i < (x[2] || 1); i++) {
+                    const constructed = this.constructUnit(blueprint, x[3] === undefined ? 1 : x[3],
+                        x[1] === 'own' ? this.activePlayer : this.villain(), x[4]);
+                    constructed.constructedBy = this.unitId(unit);
+                    this.emit('unitConstructed', constructed, unit);
+                }
+            });
+        }
+
+        if (script.delay !== undefined) {
+            unit.delay = script.delay;
+        }
+
+        if (script.receive !== undefined) {
+            this.addResources(script.receive);
+        }
+
+        if (script.selfsac) {
+            unit.sacrificed = true;
+        }
     }
 
     private canReverseScript(script: IScript): boolean {
-        return !Object.keys(script).some(action => {
-            switch (action) {
-            case 'delay':
-                return false;
-            case 'receive':
-                return !this.canRemoveResources(script[action]);
-            case 'create':
-            case 'selfsac':
-                return false;
-            default:
-                throw new DataError('Unknown script action.', action);
-            }
-        });
+        if (script.receive !== undefined && !this.canRemoveResources(script.receive)) {
+            return false;
+        }
+        return true;
     }
 
     private reverseScript(unit: Unit, script: IScript): void {
-        Object.keys(script).forEach(action => {
-            switch (action) {
-            case 'delay':
-                delete unit.delay;
-                break;
-            case 'receive':
-                this.removeResources(script[action]);
-                break;
-            case 'create':
-                script[action].forEach((x: any) => {
-                    const targetPlayer = x[1] === 'own' ? this.activePlayer : this.villain();
-                    for (let i = 0; i < (x[2] || 1); i++) {
-                        const found = this.slate(targetPlayer).slice().reverse().find(y => {
-                            return y.name === x[0] && y.constructedBy === this.unitId(unit);
-                        });
-                        if (!found) {
-                            throw new InvalidStateError('No unit to deconstruct.', unit);
-                        }
-                        this.destroyUnit(found, 'deconstructed');
+        if (script.create !== undefined) {
+            script.create.forEach(x => {
+                const targetPlayer = x[1] === 'own' ? this.activePlayer : this.villain();
+                for (let i = 0; i < (x[2] || 1); i++) {
+                    const found = this.slate(targetPlayer).slice().reverse().find(y => {
+                        return y.name === x[0] && y.constructedBy === this.unitId(unit);
+                    });
+                    if (!found) {
+                        throw new InvalidStateError('No unit to deconstruct.', unit);
                     }
-                });
-                break;
-            case 'selfsac':
-                if (!unit.sacrificed) {
-                    throw new InvalidStateError('Not sacrificed.', unit);
+                    this.destroyUnit(found, 'deconstructed');
                 }
-                delete unit.sacrificed;
-                break;
-            default:
-                throw new DataError('Unknown script action.', action);
+            });
+        }
+
+        if (script.delay !== undefined) {
+            delete unit.delay;
+        }
+
+        if (script.receive !== undefined) {
+            this.removeResources(script.receive);
+        }
+
+        if (script.selfsac) {
+            if (!unit.sacrificed) {
+                throw new InvalidStateError('Not sacrificed.', unit);
             }
-        });
+            delete unit.sacrificed;
+        }
     }
 
     private runStartTurn(): void {
