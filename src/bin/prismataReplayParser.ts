@@ -31,15 +31,15 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     console.info(`Start time: ${parser.getStartTime()}`);
     console.info(`End time: ${parser.getEndTime()}`);
     console.info(`Server version: ${parser.getServerVersion()}`);
-    console.info(`P1: ${JSON.stringify(parser.getPlayerInfo(0))}`);
-    console.info(`P2: ${JSON.stringify(parser.getPlayerInfo(1))}`);
+    console.info(`P1: ${JSON.stringify(parser.getPlayerInfo(Player.First))}`);
+    console.info(`P2: ${JSON.stringify(parser.getPlayerInfo(Player.Second))}`);
     console.info(`Game format: ${GameFormat[parser.getGameFormat()]}`);
-    console.info(`Time control P1: ${JSON.stringify(parser.getTimeControl(0))}`);
-    console.info(`Time control P2: ${JSON.stringify(parser.getTimeControl(1))}`);
-    console.info(`Deck P1: ${JSON.stringify(parser.getDeck(0))}`);
-    console.info(`Deck P2: ${JSON.stringify(parser.getDeck(1))}`);
-    console.info(`Start position P1: ${JSON.stringify(parser.getStartPosition(0))}`);
-    console.info(`Start position P2: ${JSON.stringify(parser.getStartPosition(1))}`);
+    console.info(`Time control P1: ${JSON.stringify(parser.getTimeControl(Player.First))}`);
+    console.info(`Time control P2: ${JSON.stringify(parser.getTimeControl(Player.Second))}`);
+    console.info(`Deck P1: ${JSON.stringify(parser.getDeck(Player.First))}`);
+    console.info(`Deck P2: ${JSON.stringify(parser.getDeck(Player.Second))}`);
+    console.info(`Start position P1: ${JSON.stringify(parser.getStartPosition(Player.First))}`);
+    console.info(`Start position P2: ${JSON.stringify(parser.getStartPosition(Player.Second))}`);
 
     if (showCommands) {
         parser.on('command', (command: ReplayCommandType, id?: number) => {
@@ -159,15 +159,15 @@ async function main(): Promise<void> {
                 parser.getStartTime();
                 parser.getEndTime();
                 parser.getServerVersion();
-                parser.getPlayerInfo(0);
-                parser.getPlayerInfo(1);
+                parser.getPlayerInfo(Player.First);
+                parser.getPlayerInfo(Player.Second);
                 parser.getGameFormat();
-                parser.getTimeControl(0);
-                parser.getTimeControl(1);
-                parser.getDeck(0);
-                parser.getDeck(1);
-                parser.getStartPosition(0);
-                parser.getStartPosition(1);
+                parser.getTimeControl(Player.First);
+                parser.getTimeControl(Player.Second);
+                parser.getDeck(Player.First);
+                parser.getDeck(Player.Second);
+                parser.getStartPosition(Player.First);
+                parser.getStartPosition(Player.Second);
                 parser.getResult();
                 parser.run();
             } catch (e) {

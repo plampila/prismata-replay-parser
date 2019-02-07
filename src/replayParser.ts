@@ -1068,7 +1068,7 @@ export class ReplayParser extends EventEmitter {
         return gameFormat;
     }
 
-    public getPlayerInfo(player: number): any {
+    public getPlayerInfo(player: Player): any {
         function formatRating(value: number): number {
             return parseFloat(value.toFixed(2));
         }
@@ -1121,7 +1121,7 @@ export class ReplayParser extends EventEmitter {
         return info;
     }
 
-    public getTimeControl(player: number): ITimeControl {
+    public getTimeControl(player: Player): ITimeControl {
         const timeInfo = this.data.timeInfo;
         if (!timeInfo) {
             throw new DataError('Time info missing.');
@@ -1148,7 +1148,7 @@ export class ReplayParser extends EventEmitter {
         };
     }
 
-    public getDeck(player: number): Deck {
+    public getDeck(player: Player): Deck {
         const info = parseDeckAndInitInfo(this.data);
 
         const deck: any = {
@@ -1173,7 +1173,7 @@ export class ReplayParser extends EventEmitter {
         return deck;
     }
 
-    public getStartPosition(player: number): any {
+    public getStartPosition(player: Player): any {
         const info = parseDeckAndInitInfo(this.data);
 
         const startPosition: any = {
