@@ -2,10 +2,9 @@ import { strict as assert } from 'assert';
 import { EventEmitter } from 'events';
 import * as timsort from 'timsort';
 
+import { ActionType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
-import {
-    blocking, deepClone, frozen, parseResources, purchasedThisTurn, validTarget,
-} from './util';
+import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, validTarget } from './util';
 
 export enum Player {
     First = 0,
@@ -119,6 +118,13 @@ export interface IGameStateSnapshot {
     supplies: ISupplies;
     resources: IResources;
     units: Unit[];
+}
+export declare interface GameState { // tslint:disable-line:interface-name
+    on(event: 'assignAttackBlocker', listener: (unit: Unit) => void): this;
+    on(event: 'autoAction', listener: (action: ActionType, unit: Unit) => void): this;
+    on(event: 'turnStarted', listener: (turnNumber: number, player: Player) => void): this;
+    on(event: 'unitConstructed', listener: (constructed: Unit, by: Unit) => void): this;
+    on(event: 'unitDestroyed', listener: (unit: Unit, reason: string) => void): this;
 }
 
 export class GameState extends EventEmitter {
@@ -293,11 +299,11 @@ export class GameState extends EventEmitter {
                 if (!this.blueprintForName(name)) {
                     throw new DataError('Unknown unit.', name);
                 }
-                if (RARITIES[this.blueprintForName(name).rarity] === undefined) {
+                const supply = RARITIES[this.blueprintForName(name).rarity];
+                if (supply === undefined) {
                     throw new DataError('Unknown rarity.', this.blueprintForName(name).rarity);
                 }
-                this.supplies[player][name] = infiniteSupplies ? Infinity :
-                    RARITIES[this.blueprintForName(name).rarity];
+                this.supplies[player][name] = infiniteSupplies ? Infinity : supply;
             }
         });
 
@@ -322,7 +328,7 @@ export class GameState extends EventEmitter {
             if (unit.targetedBy) {
                 unit.targetedBy.map((id: number) => this.units[id]).forEach((x: Unit) => {
                     if (x.targetAction === 'snipe') {
-                        this.emit('autoAction', 'cancelUseAbility', x);
+                        this.emit('autoAction', ActionType.CancelUseAbility, x);
                         this.cancelUseAbility(x);
                     }
                 });
@@ -330,7 +336,7 @@ export class GameState extends EventEmitter {
             if (unit.sacrificed) {
                 throw new InvalidStateError('Partially damaged unit sacrificed.', unit);
             }
-            this.emit('autoAction', 'cancelAssignAttack', unit);
+            this.emit('autoAction', ActionType.CancelAssignAttack, unit);
             this.cancelAssignAttack(unit);
         }
     }
@@ -1026,7 +1032,7 @@ export class GameState extends EventEmitter {
         if (unit.targetedBy) {
             unit.targetedBy.map((id: number) => this.units[id]).forEach((x: Unit) => {
                 if (x.targetAction === 'snipe') {
-                    this.emit('autoAction', 'cancelUseAbility', x);
+                    this.emit('autoAction', ActionType.CancelUseAbility, x);
                     this.cancelUseAbility(x);
                 }
             });

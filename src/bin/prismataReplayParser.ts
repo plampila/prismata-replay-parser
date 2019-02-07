@@ -33,7 +33,7 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     console.info(`Server version: ${parser.getServerVersion()}`);
     console.info(`P1: ${JSON.stringify(parser.getPlayerInfo(0))}`);
     console.info(`P2: ${JSON.stringify(parser.getPlayerInfo(1))}`);
-    console.info(`Game format: ${GameFormat[parser.getGameFormat()]}`); // TODO: to string
+    console.info(`Game format: ${GameFormat[parser.getGameFormat()]}`);
     console.info(`Time control P1: ${JSON.stringify(parser.getTimeControl(0))}`);
     console.info(`Time control P2: ${JSON.stringify(parser.getTimeControl(1))}`);
     console.info(`Deck P1: ${JSON.stringify(parser.getDeck(0))}`);
@@ -42,7 +42,7 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     console.info(`Start position P2: ${JSON.stringify(parser.getStartPosition(1))}`);
 
     if (showCommands) {
-        parser.on('command', (command: ReplayCommandType, id: string | undefined) => {
+        parser.on('command', (command: ReplayCommandType, id?: number) => {
             if (id !== undefined) {
                 log(1, `${command} ${id}`);
             } else {

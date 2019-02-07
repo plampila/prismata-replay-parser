@@ -304,6 +304,12 @@ interface IResult {
     winner?: Player;
 }
 
+export declare interface ReplayParser { // tslint:disable-line:interface-name
+    on(event: 'undoSnapshot' | 'initGame' | 'initGameDone', listener: () => void): this;
+    on(event: 'command' | 'commandDone', listener: (action: ReplayCommandType, id?: number) => void): this;
+    on(event: 'action' | 'actionDone', listener: (action: ActionType, data?: any) => void): this;
+}
+
 export class ReplayParser extends EventEmitter {
     public readonly state: GameState = new GameState();
 
