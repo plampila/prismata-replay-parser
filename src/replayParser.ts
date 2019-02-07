@@ -4,7 +4,7 @@ import * as timsort from 'timsort';
 
 import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
-import { Deck, GameState, IGameStateSnapshot, Player, Unit } from './gameState';
+import { Deck, GameState, IGameStateSnapshot, IInitialState, Player, Unit } from './gameState';
 import {
     blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget,
 } from './util';
@@ -170,7 +170,7 @@ function parseCommand(data: any): IReplayCommand {
     return { command };
 }
 
-function parseDeckAndInitInfo(data: any): any {
+function parseDeckAndInitInfo(data: any): IInitialState {
     if (!data.versionInfo) {
         throw new DataError('Version info missing.');
     }

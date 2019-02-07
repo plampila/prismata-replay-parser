@@ -12,8 +12,17 @@ export enum Player {
 }
 
 export type Unit = any;
-export type Blueprint = any;
-export type Deck = any;
+export interface IBlueprint {
+    [property: string]: any;
+}
+
+export type Deck = IBlueprint[];
+
+interface IScript {
+    [action: string]: any;
+}
+
+type SacrificeRule = [string, number];
 
 export interface ISupplies {
     [unitName: string]: number;
@@ -110,6 +119,18 @@ const DEFAULT_PROPERTIES: {
     undefendable: false,
 };
 
+type InitialUnitList = Array<[number, string]>;
+type PurchasableUnitList = Array<string | [string, number]>;
+
+export interface IInitialState {
+    initResources: [string | number, string | number]; // TODO: get rid of the number in replayParser
+    deck: Deck;
+    initCards: [InitialUnitList, InitialUnitList];
+    baseSets: [PurchasableUnitList, PurchasableUnitList];
+    randomSets: [PurchasableUnitList, PurchasableUnitList];
+    infiniteSupplies?: boolean;
+}
+
 export interface IGameStateSnapshot {
     deck: Deck;
     turnNumber: number;
@@ -119,6 +140,7 @@ export interface IGameStateSnapshot {
     resources: IResources;
     units: Unit[];
 }
+
 export declare interface GameState { // tslint:disable-line:interface-name
     on(event: 'assignAttackBlocker', listener: (unit: Unit) => void): this;
     on(event: 'autoAction', listener: (action: ActionType, unit: Unit) => void): this;
@@ -128,7 +150,7 @@ export declare interface GameState { // tslint:disable-line:interface-name
 }
 
 export class GameState extends EventEmitter {
-    public deck: Deck | null = null;
+    public deck: Deck = [];
     private turnNumber: number = 0;
     public activePlayer: Player = Player.First;
     public inDefensePhase: boolean | null = null;
@@ -207,8 +229,8 @@ export class GameState extends EventEmitter {
         return id >= 0 ? id : null;
     }
 
-    private blueprintForName(name: string): Blueprint {
-        return this.deck.find((x: any) => x.name === name);
+    private blueprintForName(name: string): IBlueprint | undefined {
+        return this.deck.find(x => x.name === name);
     }
 
     // Internal
@@ -250,7 +272,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    private constructUnit(unitData: any, buildTime?: number, player: Player = this.activePlayer,
+    private constructUnit(unitData: IBlueprint, buildTime?: number, player: Player = this.activePlayer,
                           lifespan?: number): Unit {
         Object.keys(unitData).forEach(key => {
             if (UNIT_ATTRIBUTE_SUPPORT[key] === undefined) {
@@ -288,28 +310,34 @@ export class GameState extends EventEmitter {
         this.emit('unitDestroyed', unit, reason);
     }
 
-    private initPlayer(player: Player, cards: any, baseSet: any, randomSet: any, infiniteSupplies: boolean): void {
-        baseSet.concat(randomSet).forEach((name: any) => {
-            if (Array.isArray(name)) {
-                if (name[1] <= 0) {
-                    throw new DataError('Invalid set supply.', name);
+    private initPlayer(player: Player, cards: InitialUnitList, baseSet: PurchasableUnitList,
+                       randomSet: PurchasableUnitList, infiniteSupplies: boolean = false): void {
+        baseSet.concat(randomSet).forEach(x => {
+            if (Array.isArray(x)) {
+                if (x[1] <= 0) {
+                    throw new DataError('Invalid set supply.', x);
                 }
-                this.supplies[player][name[0]] = infiniteSupplies ? Infinity : name[1];
+                this.supplies[player][x[0]] = infiniteSupplies ? Infinity : x[1];
             } else {
-                if (!this.blueprintForName(name)) {
-                    throw new DataError('Unknown unit.', name);
+                const blueprint = this.blueprintForName(x);
+                if (blueprint === undefined) {
+                    throw new DataError('Unknown unit.', x);
                 }
-                const supply = RARITIES[this.blueprintForName(name).rarity];
+                const supply = RARITIES[blueprint.rarity];
                 if (supply === undefined) {
-                    throw new DataError('Unknown rarity.', this.blueprintForName(name).rarity);
+                    throw new DataError('Unknown rarity.', blueprint.rarity);
                 }
-                this.supplies[player][name] = infiniteSupplies ? Infinity : supply;
+                this.supplies[player][x] = infiniteSupplies ? Infinity : supply;
             }
         });
 
-        cards.forEach((x: any) => {
+        cards.forEach(x => {
+            const blueprint = this.blueprintForName(x[1]);
+            if (!blueprint) {
+                throw new DataError('Blueprint not found.', x[1]);
+            }
             for (let i = 0; i < x[0]; i++) {
-                this.constructUnit(this.blueprintForName(x[1]), 0, player);
+                this.constructUnit(blueprint, 0, player);
             }
         });
     }
@@ -388,11 +416,11 @@ export class GameState extends EventEmitter {
         return found;
     }
 
-    private canSacrificeUnits(rules: any[]): boolean {
+    private canSacrificeUnits(rules: SacrificeRule[]): boolean {
         return !rules.some(x => this.sacrificeList(x[0]).length < (x[1] || 1));
     }
 
-    private sacrificeUnits(rules: any[]): void {
+    private sacrificeUnits(rules: SacrificeRule[]): void {
         rules.forEach(x => {
             const name = x[0];
             const count = (x[1] || 1);
@@ -411,21 +439,19 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private cancelSacrificeUnits(rules: any[]): void {
+    private cancelSacrificeUnits(rules: SacrificeRule[]): void {
         rules.forEach(x => {
             for (let i = 0; i < (x[1] || 1); i++) {
-                const found =
-                    this.slate(this.activePlayer).find(y => y.name === x[0] && y.sacrificed);
+                const found = this.slate(this.activePlayer).find(y => y.name === x[0] && y.sacrificed);
                 if (!found) {
-                    throw new InvalidStateError('No unit found to cancel ability sacrifice.',
-                        rules);
+                    throw new InvalidStateError('No unit found to cancel ability sacrifice.', rules);
                 }
                 delete found.sacrificed;
             }
         });
     }
 
-    private runScript(unit: Unit, script: any): void {
+    private runScript(unit: Unit, script: IScript): void {
         Object.keys(script).forEach(action => {
             switch (action) {
             case 'delay':
@@ -436,9 +462,12 @@ export class GameState extends EventEmitter {
                 break;
             case 'create':
                 script[action].forEach((x: any) => {
+                    const blueprint = this.blueprintForName(x[0]);
+                    if (blueprint === undefined) {
+                        throw new DataError('Blueprint not found.', x[0]);
+                    }
                     for (let i = 0; i < (x[2] || 1); i++) {
-                        const constructed = this.constructUnit(this.blueprintForName(x[0]),
-                            x[3] === undefined ? 1 : x[3],
+                        const constructed = this.constructUnit(blueprint, x[3] === undefined ? 1 : x[3],
                             x[1] === 'own' ? this.activePlayer : this.villain(), x[4]);
                         constructed.constructedBy = this.unitId(unit);
                         this.emit('unitConstructed', constructed, unit);
@@ -454,7 +483,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private canReverseScript(script: any): boolean {
+    private canReverseScript(script: IScript): boolean {
         return !Object.keys(script).some(action => {
             switch (action) {
             case 'delay':
@@ -470,7 +499,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private reverseScript(unit: Unit, script: any): void {
+    private reverseScript(unit: Unit, script: IScript): void {
         Object.keys(script).forEach(action => {
             switch (action) {
             case 'delay':
@@ -689,7 +718,9 @@ export class GameState extends EventEmitter {
         }
 
         const blueprint = this.blueprintForName(name);
-        assert(blueprint !== null);
+        if (blueprint === undefined) {
+            throw new DataError('Blueprint not found.', name);
+        }
 
         this.supplies[this.activePlayer][blueprint.name]--;
         assert(this.supplies[this.activePlayer][blueprint.name] >= 0);
@@ -1054,7 +1085,7 @@ export class GameState extends EventEmitter {
     }
 
     // Public
-    public init(info: any): void {
+    public init(info: IInitialState): void {
         if (this.turnNumber !== 0) {
             throw new InvalidStateError('Already initialized.');
         }
