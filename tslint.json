@@ -17,6 +17,7 @@
         "file-name-casing": {
             "options": "camel-case"
         },
+        "interface-name": [true, "never-prefix"],
         "max-classes-per-file": false,
         "member-ordering": false,
         "no-dynamic-delete": true,

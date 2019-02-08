@@ -12,16 +12,16 @@ export enum Player {
 }
 
 export type Unit = any;
-export interface IBlueprint {
+export interface Blueprint {
     [property: string]: any;
 }
 
-export type Deck = IBlueprint[];
+export type Deck = Blueprint[];
 
 /** Unit name, target (own or enemy), count, build time, lifespan */
 type ScriptCreateRule = [string, 'own' | 'enemy', number, number?, number?];
 
-interface IScript {
+interface Script {
     create?: ScriptCreateRule[];
     delay?: number;
     receive?: string;
@@ -31,11 +31,11 @@ interface IScript {
 /** Unit name and count */
 type SacrificeRule = [string, number];
 
-export interface ISupplies {
+export interface Supplies {
     [unitName: string]: number;
 }
 
-export interface IResources {
+export interface Resources {
     gold: number;
     green: number;
     blue: number;
@@ -129,26 +129,26 @@ const DEFAULT_PROPERTIES: {
 type InitialUnitList = Array<[number, string]>;
 type PurchasableUnitList = Array<string | [string, number]>;
 
-export interface IInitialState {
-    initResources: [string | number, string | number]; // TODO: get rid of the number in replayParser
-    deck: Deck;
-    initCards: [InitialUnitList, InitialUnitList];
+export interface InitialState {
     baseSets: [PurchasableUnitList, PurchasableUnitList];
-    randomSets: [PurchasableUnitList, PurchasableUnitList];
+    deck: Deck;
     infiniteSupplies?: boolean;
+    initCards: [InitialUnitList, InitialUnitList];
+    initResources: [string, string];
+    randomSets: [PurchasableUnitList, PurchasableUnitList];
 }
 
-export interface IGameStateSnapshot {
+export interface GameStateSnapshot {
     deck: Deck;
     turnNumber: number;
     activePlayer: Player;
     inDefensePhase: boolean;
-    supplies: ISupplies;
-    resources: IResources;
+    supplies: Supplies;
+    resources: Resources;
     units: Unit[];
 }
 
-export declare interface GameState { // tslint:disable-line:interface-name
+export declare interface GameState {
     on(event: 'assignAttackBlocker', listener: (unit: Unit) => void): this;
     on(event: 'autoAction', listener: (action: ActionType, unit: Unit) => void): this;
     on(event: 'turnStarted', listener: (turnNumber: number, player: Player) => void): this;
@@ -161,8 +161,8 @@ export class GameState extends EventEmitter {
     private turnNumber: number = 0;
     public activePlayer: Player = Player.First;
     public inDefensePhase: boolean = false;
-    private supplies: [ISupplies, ISupplies] = [{}, {}];
-    private resources: [IResources, IResources] = [parseResources('0'), parseResources('0')];
+    private supplies: [Supplies, Supplies] = [{}, {}];
+    private resources: [Resources, Resources] = [parseResources('0'), parseResources('0')];
     public units: Unit[] = [];
 
     constructor() {
@@ -235,7 +235,7 @@ export class GameState extends EventEmitter {
         return id >= 0 ? id : undefined;
     }
 
-    private blueprintForName(name: string): IBlueprint | undefined {
+    private blueprintForName(name: string): Blueprint | undefined {
         return this.deck.find(x => x.name === name);
     }
 
@@ -278,7 +278,7 @@ export class GameState extends EventEmitter {
         }
     }
 
-    private constructUnit(unitData: IBlueprint, buildTime?: number, player: Player = this.activePlayer,
+    private constructUnit(unitData: Blueprint, buildTime?: number, player: Player = this.activePlayer,
                           lifespan?: number): Unit {
         Object.keys(unitData).forEach(key => {
             if (UNIT_ATTRIBUTE_SUPPORT[key] === undefined) {
@@ -457,7 +457,7 @@ export class GameState extends EventEmitter {
         });
     }
 
-    private runScript(unit: Unit, script: IScript): void {
+    private runScript(unit: Unit, script: Script): void {
         if (script.create !== undefined) {
             script.create.forEach(x => {
                 const blueprint = this.blueprintForName(x[0]);
@@ -486,14 +486,14 @@ export class GameState extends EventEmitter {
         }
     }
 
-    private canReverseScript(script: IScript): boolean {
+    private canReverseScript(script: Script): boolean {
         if (script.receive !== undefined && !this.canRemoveResources(script.receive)) {
             return false;
         }
         return true;
     }
 
-    private reverseScript(unit: Unit, script: IScript): void {
+    private reverseScript(unit: Unit, script: Script): void {
         if (script.create !== undefined) {
             script.create.forEach(x => {
                 const targetPlayer = x[1] === 'own' ? this.activePlayer : this.villain();
@@ -1076,7 +1076,7 @@ export class GameState extends EventEmitter {
     }
 
     // Public
-    public init(info: IInitialState): void {
+    public init(info: InitialState): void {
         if (this.turnNumber !== 0) {
             throw new InvalidStateError('Already initialized.');
         }
@@ -1094,7 +1094,7 @@ export class GameState extends EventEmitter {
         this.runStartTurn();
     }
 
-    public getSnapshot(): IGameStateSnapshot {
+    public getSnapshot(): GameStateSnapshot {
         return {
             deck: deepClone(this.deck),
             turnNumber: this.turnNumber,
@@ -1106,7 +1106,7 @@ export class GameState extends EventEmitter {
         };
     }
 
-    public restoreSnapshot(snapshot: IGameStateSnapshot): void {
+    public restoreSnapshot(snapshot: GameStateSnapshot): void {
         this.deck = deepClone(snapshot.deck);
         this.turnNumber = snapshot.turnNumber;
         this.activePlayer = snapshot.activePlayer;

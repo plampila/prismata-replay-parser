@@ -4,7 +4,7 @@ import * as timsort from 'timsort';
 
 import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
-import { Deck, GameState, IGameStateSnapshot, IInitialState, Player, Unit } from './gameState';
+import { Deck, GameState, GameStateSnapshot, InitialState, Player, Unit } from './gameState';
 import {
     blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget,
 } from './util';
@@ -125,14 +125,14 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
     return units;
 }
 
-interface IReplayCommand {
+interface ReplayCommand {
     command: ReplayCommandType;
     id?: number;
     player?: number;
     params?: any;
 }
 
-function parseCommand(data: any): IReplayCommand {
+function parseCommand(data: any): ReplayCommand {
     if (data._type.startsWith('emote')) {
         if (!data.hasOwnProperty('_id') && !data.hasOwnProperty('_params')) {
             throw new DataError('Missing properties.', data);
@@ -178,7 +178,7 @@ function parseCommand(data: any): IReplayCommand {
     return { command };
 }
 
-function parseDeckAndInitInfo(data: any): IInitialState {
+function parseDeckAndInitInfo(data: any): InitialState {
     if (!data.versionInfo) {
         throw new DataError('Version info missing.');
     }
@@ -268,24 +268,24 @@ function parseDeckAndInitInfo(data: any): IInitialState {
     return info;
 }
 
-interface ISnapshot {
+interface Snapshot {
     inConfirmPhase: boolean;
     inDamagePhase: boolean;
     targetingUnits: Unit[];
-    endDefenseSnapshot?: Snapshot;
-    endActionSnapshot?: Snapshot;
-    stateSnapshot: IGameStateSnapshot;
+    endDefenseSnapshot?: SnapshotImpl;
+    endActionSnapshot?: SnapshotImpl;
+    stateSnapshot: GameStateSnapshot;
 }
 
-class Snapshot implements ISnapshot {
+class SnapshotImpl implements Snapshot {
     public readonly inConfirmPhase: boolean;
     public readonly inDamagePhase: boolean;
     public readonly targetingUnits: Unit[];
-    public readonly endDefenseSnapshot?: Snapshot;
-    public readonly endActionSnapshot?: Snapshot;
-    public readonly stateSnapshot: IGameStateSnapshot;
+    public readonly endDefenseSnapshot?: SnapshotImpl;
+    public readonly endActionSnapshot?: SnapshotImpl;
+    public readonly stateSnapshot: GameStateSnapshot;
 
-    constructor(source: ISnapshot) {
+    constructor(source: Snapshot) {
         this.inConfirmPhase = source.inConfirmPhase;
         this.inDamagePhase = source.inDamagePhase;
         this.targetingUnits = source.targetingUnits.slice();
@@ -295,24 +295,33 @@ class Snapshot implements ISnapshot {
     }
 }
 
-interface IClickAction {
+interface ClickAction {
     action?: ActionType;
     unit?: Unit;
 }
 
-interface ITimeControl {
+interface TimeControl {
     bankDilution: number;
     initial: number;
     bank: number;
     increment: number;
 }
 
-interface IResult {
+interface Result {
     endCondition: EndCondition;
     winner?: Player;
 }
 
-export declare interface ReplayParser { // tslint:disable-line:interface-name
+interface VersionInfo {
+    serverVersion: number;
+    playerVersions: [string, string];
+}
+
+function validateVersionInfo(data: any): data is VersionInfo {
+    return typeof data === 'object';
+}
+
+export declare interface ReplayParser {
     on(event: 'undoSnapshot' | 'initGame' | 'initGameDone', listener: () => void): this;
     on(event: 'command' | 'commandDone', listener: (action: ReplayCommandType, id?: number) => void): this;
     on(event: 'action' | 'actionDone', listener: (action: ActionType, data?: any) => void): this;
@@ -326,11 +335,11 @@ export class ReplayParser extends EventEmitter {
     private inDamagePhase: boolean = false;
     private targetingUnits: Unit[] = [];
 
-    private undoSnapshots: Snapshot[] = [];
+    private undoSnapshots: SnapshotImpl[] = [];
     private combinedAction: boolean = false;
-    private startTurnSnapshot?: Snapshot;
-    private endDefenseSnapshot?: Snapshot;
-    private endActionSnapshot?: Snapshot;
+    private startTurnSnapshot?: SnapshotImpl;
+    private endDefenseSnapshot?: SnapshotImpl;
+    private endActionSnapshot?: SnapshotImpl;
 
     constructor(replayData: any) {
         super();
@@ -350,8 +359,8 @@ export class ReplayParser extends EventEmitter {
         this.data = parsed;
     }
 
-    private getSnapshot(): Snapshot {
-        return new Snapshot({
+    private getSnapshot(): SnapshotImpl {
+        return new SnapshotImpl({
             inConfirmPhase: this.inConfirmPhase,
             inDamagePhase: this.inDamagePhase,
             targetingUnits: this.targetingUnits.slice(),
@@ -361,7 +370,7 @@ export class ReplayParser extends EventEmitter {
         });
     }
 
-    private restoreSnapshot(snapshot: ISnapshot): void {
+    private restoreSnapshot(snapshot: Snapshot): void {
         this.inConfirmPhase = snapshot.inConfirmPhase;
         this.inDamagePhase = snapshot.inDamagePhase;
         this.targetingUnits = snapshot.targetingUnits.slice();
@@ -384,7 +393,7 @@ export class ReplayParser extends EventEmitter {
         this.combinedAction = false;
     }
 
-    private getClickAction(unit: Unit): IClickAction {
+    private getClickAction(unit: Unit): ClickAction {
         assert(this.targetingUnits.length === 0, 'In targeting mode.');
         assert(!this.inConfirmPhase, 'In confirm phase.');
 
@@ -793,7 +802,7 @@ export class ReplayParser extends EventEmitter {
             return;
         }
 
-        const { action, unit }: IClickAction = this.getClickAction(clickedUnit);
+        const { action, unit }: ClickAction = this.getClickAction(clickedUnit);
         if (!action) {
             throw new InvalidStateError('No click action.', clickedUnit);
         }
@@ -844,7 +853,7 @@ export class ReplayParser extends EventEmitter {
             return;
         }
 
-        const { action, unit }: IClickAction = this.getClickAction(clickedUnit);
+        const { action, unit }: ClickAction = this.getClickAction(clickedUnit);
         if (!action) {
             throw new InvalidStateError('No click action.', clickedUnit);
         }
@@ -1073,7 +1082,7 @@ export class ReplayParser extends EventEmitter {
         this.initGame();
         this.emit('initGameDone');
         this.getCommandList().forEach((x: any) => {
-            const { command, id }: IReplayCommand = parseCommand(x);
+            const { command, id }: ReplayCommand = parseCommand(x);
             this.runCommand(command, id);
         });
     }
@@ -1158,7 +1167,7 @@ export class ReplayParser extends EventEmitter {
         return info;
     }
 
-    public getTimeControl(player: Player): ITimeControl {
+    public getTimeControl(player: Player): TimeControl {
         const timeInfo = this.data.timeInfo;
         if (!timeInfo) {
             throw new DataError('Time info missing.');
@@ -1228,7 +1237,7 @@ export class ReplayParser extends EventEmitter {
         return startPosition;
     }
 
-    public getResult(): IResult {
+    public getResult(): Result {
         if (this.data.result === undefined || this.data.result === null) {
             throw new DataError('Missing result.');
         }
