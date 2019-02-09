@@ -6,8 +6,10 @@ import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './const
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { Deck, GameState, GameStateSnapshot, InitialState, Player, Unit } from './gameState';
 import {
-    blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget,
-} from './util';
+    ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime, validate, validateServerVersion,
+    validationErrorText,
+} from './replayData';
+import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget } from './util';
 
 const DRAW_END_CONDITIONS = [EndCondition.Repetition, EndCondition.DoubleDisconnect, EndCondition.Draw];
 
@@ -125,22 +127,15 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
     return units;
 }
 
-interface ReplayCommand {
+interface Command {
     command: ReplayCommandType;
     id?: number;
     player?: number;
     params?: any;
 }
 
-function parseCommand(data: any): ReplayCommand {
+function parseCommand(data: ReplayCommand): Command {
     if (data._type.startsWith('emote')) {
-        if (!data.hasOwnProperty('_id') && !data.hasOwnProperty('_params')) {
-            throw new DataError('Missing properties.', data);
-        }
-        if (Object.keys(data).length !== 2 &&
-            (Object.keys(data).length !== 3 || !data.hasOwnProperty('_type'))) {
-            throw new DataError('Unknown properties.', data);
-        }
         return {
             command: ReplayCommandType.Emote,
             player: data._id,
@@ -148,11 +143,8 @@ function parseCommand(data: any): ReplayCommand {
         };
     }
 
-    if (!data.hasOwnProperty('_type') || !data.hasOwnProperty('_id')) {
-        throw new DataError('Missing properties.', data);
-    }
-    if (Object.keys(data).length !== 2) {
-        throw new DataError('Unknown properties.', data);
+    if (data._params !== undefined) {
+        throw new DataError('Non-emote command with _params.', data);
     }
 
     const id = data._id;
@@ -178,43 +170,34 @@ function parseCommand(data: any): ReplayCommand {
     return { command };
 }
 
-function parseDeckAndInitInfo(data: any): InitialState {
-    if (!data.versionInfo) {
-        throw new DataError('Version info missing.');
-    }
-    if (!data.deckInfo) {
-        throw new DataError('Deck info missing.');
-    }
-    if (!data.initInfo) {
-        throw new DataError('Init info missing.');
-    }
-
-    const info: any = {};
-    if (data.versionInfo.serverVersion <= 153) {
+function parseDeckAndInitInfo(data: ReplayData): InitialState {
+    const info: InitialState = {
+        deck: deepClone(data.deckInfo.mergedDeck),
+        baseSets: data.deckInfo.base,
+        randomSets: data.deckInfo.randomizer,
+        initCards: data.initInfo.initCards,
+        initResources: data.initInfo.initResources,
+        infiniteSupplies: data.initInfo.infiniteSupplies,
+    };
+    /*if (data.versionInfo.serverVersion <= 153) {
         info.baseSets = [data.deckInfo.whiteBase, data.deckInfo.blackBase];
         info.randomSets = [data.deckInfo.whiteDominion, data.deckInfo.blackDominion];
         info.initCards = [data.initInfo.whiteInitCards, data.initInfo.blackInitCards];
         info.initResources = [data.initInfo.whiteInitResources, data.initInfo.blackInitResources];
-    } else {
-        info.baseSets = data.deckInfo.base;
-        info.randomSets = data.deckInfo.randomizer;
-        info.initCards = data.initInfo.initCards;
-        info.initResources = data.initInfo.initResources;
-    }
-    info.infiniteSupplies = data.initInfo.infiniteSupplies;
-
-    info.deck = deepClone(data.deckInfo.mergedDeck);
+    } else {*/
 
     // Renames are used even in new replays for some event units
-    const renames = info.deck.filter((x: any) => x.UIName && x.UIName !== x.name).reduce((list: any, x: any) => {
-        list[x.name] = x.UIName;
-        x.originalName = x.name;
-        x.name = x.UIName;
-        delete x.UIName;
-        return list;
-    }, {});
+    const renames: { [oldName: string]: string } = {};
+    info.deck.filter(x => x.UIName && x.UIName !== x.name)
+        .forEach(x => {
+            renames[x.name] = x.UIName;
+            x.originalName = x.name;
+            x.name = x.UIName;
+            delete x.UIName;
+        });
+
     if (Object.keys(renames).length > 0) {
-        info.deck.forEach((x: any) => {
+        info.deck.forEach(x => {
             ['resonate', 'goldResonate'].forEach(key => {
                 if (renames[x[key]]) {
                     x[key] = renames[x[key]];
@@ -240,32 +223,83 @@ function parseDeckAndInitInfo(data: any): InitialState {
             });
         });
 
-        info.initCards.forEach((initCardsForPlayer: any) => {
-            initCardsForPlayer.forEach((x: any) => {
+        info.initCards.forEach(initCardsForPlayer => {
+            initCardsForPlayer.forEach(x => {
                 if (renames[x[1]]) {
                     x[1] = renames[x[1]];
                 }
             });
         });
 
-        info.baseSets.forEach((baseSetForPlayer: any) => {
+        info.baseSets.forEach(baseSetForPlayer => {
             for (let i = 0; i < baseSetForPlayer.length; i++) {
-                if (renames[baseSetForPlayer[i]]) {
-                    baseSetForPlayer[i] = renames[baseSetForPlayer[i]];
+                const x = baseSetForPlayer[i];
+                if (Array.isArray(x)) {
+                    if (renames[x[0]]) {
+                        x[0] = renames[x[0]];
+                    }
+                } else {
+                    if (renames[x]) {
+                        baseSetForPlayer[i] = renames[x];
+                    }
                 }
             }
         });
 
-        info.randomSets.forEach((randomSetForPlayer: any) => {
+        info.randomSets.forEach(randomSetForPlayer => {
             for (let i = 0; i < randomSetForPlayer.length; i++) {
-                if (renames[randomSetForPlayer[i]]) {
-                    randomSetForPlayer[i] = renames[randomSetForPlayer[i]];
+                const x = randomSetForPlayer[i];
+                if (Array.isArray(x)) {
+                    if (renames[x[0]]) {
+                        x[0] = renames[x[0]];
+                    }
+                } else {
+                    if (renames[x]) {
+                        randomSetForPlayer[i] = renames[x];
+                    }
                 }
             }
         });
     }
 
     return info;
+}
+
+interface PlayerInfo {
+    name: string;
+    bot: boolean;
+    displayName?: string;
+    rating?: PlayerRating;
+    finalRating?: PlayerRating;
+}
+
+interface PlayerRating {
+    value: number;
+    tier: number;
+    tierPercent?: number;
+}
+
+function parseRating(data: ReplayPlayerRating | null): PlayerRating | undefined {
+    function formatRating(value: number): number {
+        return parseFloat(value.toFixed(2));
+    }
+
+    function formatTierPercent(value: number): number {
+        return parseFloat((value * 100).toFixed(1));
+    }
+
+    if (data === null) {
+        return undefined;
+    }
+
+    const rating: PlayerRating = {
+        value: formatRating(data.displayRating),
+        tier: data.tier,
+    };
+    if (rating.tier !== 10) {
+        rating.tierPercent = formatTierPercent(data.tierPercent);
+    }
+    return rating;
 }
 
 interface Snapshot {
@@ -300,25 +334,9 @@ interface ClickAction {
     unit?: Unit;
 }
 
-interface TimeControl {
-    bankDilution: number;
-    initial: number;
-    bank: number;
-    increment: number;
-}
-
 interface Result {
     endCondition: EndCondition;
     winner?: Player;
-}
-
-interface VersionInfo {
-    serverVersion: number;
-    playerVersions: [string, string];
-}
-
-function validateVersionInfo(data: any): data is VersionInfo {
-    return typeof data === 'object';
 }
 
 export declare interface ReplayParser {
@@ -330,7 +348,8 @@ export declare interface ReplayParser {
 export class ReplayParser extends EventEmitter {
     public readonly state: GameState = new GameState();
 
-    private readonly data: { [property: string]: any };
+    private readonly data: ReplayData;
+
     private inConfirmPhase: boolean = false;
     private inDamagePhase: boolean = false;
     private targetingUnits: Unit[] = [];
@@ -353,8 +372,16 @@ export class ReplayParser extends EventEmitter {
             parsed = replayData;
         }
 
-        if (parsed === null || parsed === undefined || typeof parsed !== 'object') {
-            throw new Error('Invalid replay data.');
+        if (!validateServerVersion(parsed)) {
+            throw new Error('Failed to parse server version.');
+        }
+
+        if (parsed.versionInfo.serverVersion <= 153) {
+            throw new NotImplementedError(`Old replay version: ${parsed.versionInfo.serverVersion}`);
+        }
+
+        if (!validate(parsed)) {
+            throw new Error(`Invalid replay data: ${validationErrorText()}`);
         }
         this.data = parsed;
     }
@@ -1061,10 +1088,6 @@ export class ReplayParser extends EventEmitter {
         this.emit('commandDone', command, id);
     }
 
-    private getCommandList(): any {
-        return this.data.commandInfo.commandList;
-    }
-
     private initGame(): void {
         this.state.init(parseDeckAndInitInfo(this.data));
 
@@ -1081,8 +1104,8 @@ export class ReplayParser extends EventEmitter {
         this.emit('initGame');
         this.initGame();
         this.emit('initGameDone');
-        this.getCommandList().forEach((x: any) => {
-            const { command, id }: ReplayCommand = parseCommand(x);
+        this.data.commandInfo.commandList.forEach(x => {
+            const { command, id }: Command = parseCommand(x);
             this.runCommand(command, id);
         });
     }
@@ -1092,17 +1115,20 @@ export class ReplayParser extends EventEmitter {
     }
 
     public getStartTime(): Date {
+        if (!isFinite(this.data.startTime)) {
+            throw new DataError('Invalid start time.', this.data.startTime);
+        }
         return new Date(this.data.startTime * 1000);
     }
 
     public getEndTime(): Date {
+        if (!isFinite(this.data.endTime)) {
+            throw new DataError('Invalid end time.', this.data.endTime);
+        }
         return new Date(this.data.endTime * 1000);
     }
 
     public getServerVersion(): number {
-        if (!this.data.versionInfo) {
-            throw new DataError('Version info missing.');
-        }
         return this.data.versionInfo.serverVersion;
     }
 
@@ -1114,78 +1140,47 @@ export class ReplayParser extends EventEmitter {
         return gameFormat;
     }
 
-    public getPlayerInfo(player: Player): any {
-        function formatRating(value: number): number {
-            return parseFloat(value.toFixed(2));
-        }
-
-        function formatTierPercent(value: number): number {
-            return parseFloat((value * 100).toFixed(1));
-        }
-
-        function getRating(obj: any): any {
-            if (!obj.displayRating && (!obj.score || !obj.score[23])) {
-                return undefined;
-            }
-            const rating: any = {};
-            rating.value = formatRating(obj.displayRating ? obj.displayRating : obj.score[23]);
-            if (obj.tier !== undefined) {
-                rating.tier = obj.tier;
-                if (rating.tier !== 10) {
-                    rating.tierPercent = formatTierPercent(obj.tierPercent);
-                }
-            }
-            return rating;
-        }
-
+    public getPlayerInfo(player: Player): PlayerInfo {
         const playerInfo = this.data.playerInfo;
         if (!playerInfo) {
             throw new DataError('Player info missing.');
         }
-        const ratingInfo = this.data.ratingInfo;
-        if (!ratingInfo) {
-            throw new DataError('Rating info missing.');
-        }
 
-        const info: any = {};
-
-        if (this.getServerVersion() <= 153) {
+        /*if (this.getServerVersion() <= 153) {
             info.name = playerInfo.playerNames[player];
             info.bot = playerInfo.playerBots[player] ? true : false;
-        } else {
-            info.name = playerInfo[player].name;
-            info.bot = playerInfo[player].bot ? true : false;
-            if (playerInfo[player].name !== playerInfo[player].displayName) {
-                info.displayName = playerInfo[player].displayName;
-            }
+        } else { */
+        const info: PlayerInfo = {
+            name: playerInfo[player].name,
+            bot: playerInfo[player].bot ? true : false,
+        };
+        if (playerInfo[player].name !== playerInfo[player].displayName) {
+            info.displayName = playerInfo[player].displayName;
         }
 
-        info.rating = getRating(ratingInfo.initialRatings[player]);
-        if (this.getGameFormat() === GameFormat.Ranked && ratingInfo.finalRatings[player] !== null) {
-            info.finalRating = getRating(ratingInfo.finalRatings[player]);
+        info.rating = parseRating(this.data.ratingInfo.initialRatings[player]);
+        if (this.getGameFormat() === GameFormat.Ranked) {
+            info.finalRating = parseRating(this.data.ratingInfo.finalRatings[player]);
         }
         return info;
     }
 
-    public getTimeControl(player: Player): TimeControl {
+    public getTimeControl(player: Player): ReplayPlayerTime {
         const timeInfo = this.data.timeInfo;
-        if (!timeInfo) {
-            throw new DataError('Time info missing.');
-        }
         if (timeInfo.correspondence) {
             throw new NotImplementedError('Correspondence time info');
         }
         if (!timeInfo.useClocks) {
             throw new NotImplementedError('useClocks off in time info');
         }
-        if (this.getServerVersion() <= 153) {
+        /*if (this.getServerVersion() <= 153) {
             return {
                 bankDilution: timeInfo.playerTimeBankDilutions[player],
                 initial: player === 1 ? timeInfo.whiteInitialTime : timeInfo.blackInitialTime,
                 bank: timeInfo.playerInitialTimeBanks[player],
                 increment: timeInfo.playerIncrements[player],
             };
-        }
+        }*/
         return {
             bankDilution: timeInfo.playerTime[player].bankDilution,
             initial: timeInfo.playerTime[player].initial,
