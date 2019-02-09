@@ -5,16 +5,10 @@ import * as timsort from 'timsort';
 import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { Deck, GameState, GameStateSnapshot, InitialState, Player, Unit } from './gameState';
-import {
-    ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime, validate, validateServerVersion,
-    validationErrorText,
-} from './replayData';
-import {
-    convert as convert139, validate as validate139, validationErrorText as validationErrorText139,
-} from './replayData139';
-import {
-    convert as convert153, validate as validate153, validationErrorText as validationErrorText153,
-} from './replayData153';
+import { ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime } from './replayData';
+import { convert as convert139 } from './replayData139';
+import { convert as convert153 } from './replayData153';
+import { validate, validate139, validate153, validateServerVersion, validationErrorText } from './replayDataValidator';
 import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget } from './util';
 
 const DRAW_END_CONDITIONS = [EndCondition.Repetition, EndCondition.DoubleDisconnect, EndCondition.Draw];
@@ -379,13 +373,13 @@ export class ReplayParser extends EventEmitter {
         if (parsed.versionInfo.serverVersion <= 146) {
             if (!validate139(parsed)) {
                 throw new Error(
-                    `Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText139()}`);
+                    `Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText()}`);
             }
             parsed = convert139(parsed);
         } else if (parsed.versionInfo.serverVersion <= 153) {
             if (!validate153(parsed)) {
                 throw new Error(
-                    `Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText153()}`);
+                    `Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText()}`);
             }
             parsed = convert153(parsed);
         }

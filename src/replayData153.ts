@@ -1,14 +1,7 @@
-import Ajv from 'ajv';
-
 import {
     ReplayBlueprint, ReplayCommandInfo, ReplayData, ReplayDeckInfo, ReplayInitCards, ReplayInitInfo, ReplayPlayerInfo,
     ReplayRatingInfo, ReplayTimeInfo, ReplayVersionInfo,
 } from './replayData.js';
-
-import schema from './schemas/ReplayData153.schema.json';
-
-const ajv = new Ajv({ allErrors: true });
-const validateSchema = ajv.compile(schema);
 
 export interface ReplayServerVersion {
     versionInfo: {
@@ -92,15 +85,6 @@ export interface ReplayTimeInfo153 {
     playerIncrements: [number, number];
     playerInitialTimeBanks: [number, number];
     playerTimeBankDilutions: [number, number];
-}
-
-export function validate(data: any): data is ReplayData153 {
-    return validateSchema(data) as boolean;
-}
-
-export function validationErrorText(): string {
-    // return ajv.errorsText(validateSchema.errors);
-    return JSON.stringify(validateSchema.errors, undefined, 2);
 }
 
 export function convert(data: ReplayData153): ReplayData {

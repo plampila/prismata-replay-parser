@@ -1,7 +1,5 @@
  // tslint:disable:no-null-keyword
 
-import Ajv from 'ajv';
-
 import {
     ReplayCommandInfo, ReplayData, ReplayPlayerRating, ReplayRatingInfo, ReplayVersionInfo,
 } from './replayData.js';
@@ -9,10 +7,6 @@ import {
 import {
     convert as convert153, ReplayDeckInfo153, ReplayInitInfo153, ReplayPlayerInfo153, ReplayTimeInfo153,
 } from './replayData153.js';
-import schema from './schemas/ReplayData139.schema.json';
-
-const ajv = new Ajv({ allErrors: true });
-const validateSchema = ajv.compile(schema);
 
 export interface ReplayServerVersion {
     versionInfo: {
@@ -64,15 +58,6 @@ export interface ReplayPlayerRating139 {
     shalevV?: number;
     winLast?: boolean;
     winLastLast?: boolean;
-}
-
-export function validate(data: any): data is ReplayData139 {
-    return validateSchema(data) as boolean;
-}
-
-export function validationErrorText(): string {
-    // return ajv.errorsText(validateSchema.errors);
-    return JSON.stringify(validateSchema.errors, undefined, 2);
 }
 
 export function convert(data: ReplayData139): ReplayData {

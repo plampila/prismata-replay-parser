@@ -1,12 +1,3 @@
-import Ajv from 'ajv';
-
-import schema from './schemas/ReplayData.schema.json';
-import serverVersionSchema from './schemas/ReplayServerVersion.schema.json';
-
-const ajv = new Ajv({ allErrors: true }); // { removeAdditional: true }
-const validateSchema = ajv.compile(schema);
-const validateServerVersionSchema = ajv.compile(serverVersionSchema);
-
 export interface ReplayServerVersion {
     versionInfo: {
         serverVersion: number;
@@ -155,17 +146,4 @@ export interface ReplayPlayerTime {
 export interface ReplayVersionInfo {
     serverVersion: number;
     playerVersions?: [string, string];
-}
-
-export function validate(data: any): data is ReplayData {
-    return validateSchema(data) as boolean;
-}
-
-export function validateServerVersion(data: any): data is ReplayServerVersion {
-    return validateServerVersionSchema(data) as boolean;
-}
-
-export function validationErrorText(): string {
-    // return ajv.errorsText(validateSchema.errors);
-    return JSON.stringify(validateSchema.errors, undefined, 2);
 }
