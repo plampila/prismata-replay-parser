@@ -9,6 +9,12 @@ import {
     ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime, validate, validateServerVersion,
     validationErrorText,
 } from './replayData';
+import {
+    convert as convert139, validate as validate139, validationErrorText as validationErrorText139,
+} from './replayData139';
+import {
+    convert as convert153, validate as validate153, validationErrorText as validationErrorText153,
+} from './replayData153';
 import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget } from './util';
 
 const DRAW_END_CONDITIONS = [EndCondition.Repetition, EndCondition.DoubleDisconnect, EndCondition.Draw];
@@ -179,12 +185,6 @@ function parseDeckAndInitInfo(data: ReplayData): InitialState {
         initResources: data.initInfo.initResources,
         infiniteSupplies: data.initInfo.infiniteSupplies,
     };
-    /*if (data.versionInfo.serverVersion <= 153) {
-        info.baseSets = [data.deckInfo.whiteBase, data.deckInfo.blackBase];
-        info.randomSets = [data.deckInfo.whiteDominion, data.deckInfo.blackDominion];
-        info.initCards = [data.initInfo.whiteInitCards, data.initInfo.blackInitCards];
-        info.initResources = [data.initInfo.whiteInitResources, data.initInfo.blackInitResources];
-    } else {*/
 
     // Renames are used even in new replays for some event units
     const renames: { [oldName: string]: string } = {};
@@ -274,7 +274,7 @@ interface PlayerInfo {
 }
 
 interface PlayerRating {
-    value: number;
+    value?: number;
     tier: number;
     tierPercent?: number;
 }
@@ -293,7 +293,7 @@ function parseRating(data: ReplayPlayerRating | null): PlayerRating | undefined 
     }
 
     const rating: PlayerRating = {
-        value: formatRating(data.displayRating),
+        value: data.displayRating ? formatRating(data.displayRating) : undefined,
         tier: data.tier,
     };
     if (rating.tier !== 10) {
@@ -376,12 +376,22 @@ export class ReplayParser extends EventEmitter {
             throw new Error('Failed to parse server version.');
         }
 
-        if (parsed.versionInfo.serverVersion <= 153) {
-            throw new NotImplementedError(`Old replay version: ${parsed.versionInfo.serverVersion}`);
+        if (parsed.versionInfo.serverVersion <= 146) {
+            if (!validate139(parsed)) {
+                throw new Error(
+                    `Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText139()}`);
+            }
+            parsed = convert139(parsed);
+        } else if (parsed.versionInfo.serverVersion <= 153) {
+            if (!validate153(parsed)) {
+                throw new Error(
+                    `Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText153()}`);
+            }
+            parsed = convert153(parsed);
         }
 
         if (!validate(parsed)) {
-            throw new Error(`Invalid replay data: ${validationErrorText()}`);
+            throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText()}`);
         }
         this.data = parsed;
     }
@@ -1146,10 +1156,6 @@ export class ReplayParser extends EventEmitter {
             throw new DataError('Player info missing.');
         }
 
-        /*if (this.getServerVersion() <= 153) {
-            info.name = playerInfo.playerNames[player];
-            info.bot = playerInfo.playerBots[player] ? true : false;
-        } else { */
         const info: PlayerInfo = {
             name: playerInfo[player].name,
             bot: playerInfo[player].bot ? true : false,
@@ -1173,14 +1179,6 @@ export class ReplayParser extends EventEmitter {
         if (!timeInfo.useClocks) {
             throw new NotImplementedError('useClocks off in time info');
         }
-        /*if (this.getServerVersion() <= 153) {
-            return {
-                bankDilution: timeInfo.playerTimeBankDilutions[player],
-                initial: player === 1 ? timeInfo.whiteInitialTime : timeInfo.blackInitialTime,
-                bank: timeInfo.playerInitialTimeBanks[player],
-                increment: timeInfo.playerIncrements[player],
-            };
-        }*/
         return {
             bankDilution: timeInfo.playerTime[player].bankDilution,
             initial: timeInfo.playerTime[player].initial,

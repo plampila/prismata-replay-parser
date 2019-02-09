@@ -1,0 +1,996 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "additionalProperties": false,
+    "definitions": {
+        "ReplayBlueprint": {
+            "additionalProperties": {
+            },
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "type": "object"
+        },
+        "ReplayBotInfo153": {
+            "additionalProperties": false,
+            "properties": {
+                "difficulty": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "params": {
+                    "properties": {
+                    },
+                    "type": "object"
+                },
+                "version": {
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "ReplayCommand": {
+            "additionalProperties": false,
+            "properties": {
+                "_id": {
+                    "type": "number"
+                },
+                "_params": {
+                },
+                "_type": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "_id",
+                "_type"
+            ],
+            "type": "object"
+        },
+        "ReplayCommandInfo": {
+            "additionalProperties": false,
+            "properties": {
+                "clicksPerTurn": {
+                    "items": {
+                        "type": "number"
+                    },
+                    "type": "array"
+                },
+                "commandForced": {
+                    "items": {
+                        "type": "boolean"
+                    },
+                    "type": "array"
+                },
+                "commandList": {
+                    "items": {
+                        "$ref": "#/definitions/ReplayCommand"
+                    },
+                    "type": "array"
+                },
+                "commandTimes": {
+                    "items": {
+                        "type": "number"
+                    },
+                    "type": "array"
+                },
+                "moveDurations": {
+                    "items": {
+                        "type": "number"
+                    },
+                    "type": "array"
+                },
+                "timeBanksRemaining": {
+                    "items": {
+                        "type": "number"
+                    },
+                    "type": "array"
+                },
+                "timesRemaining": {
+                    "items": {
+                        "type": "number"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "commandList"
+            ],
+            "type": "object"
+        },
+        "ReplayDeckInfo153": {
+            "additionalProperties": false,
+            "properties": {
+                "blackBase": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "blackDominion": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "blackDraft": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "mergedDeck": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/definitions/ReplayBlueprint"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "$ref": "#/definitions/ReplayBlueprint"
+                        }
+                    ],
+                    "minItems": 1,
+                    "type": "array"
+                },
+                "skinInfo": {
+                },
+                "whiteBase": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "whiteDominion": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "whiteDraft": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "blackBase",
+                "blackDominion",
+                "mergedDeck",
+                "whiteBase",
+                "whiteDominion"
+            ],
+            "type": "object"
+        },
+        "ReplayInitCards": {
+            "items": {
+                "additionalItems": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
+                },
+                "items": [
+                    {
+                        "type": "number"
+                    },
+                    {
+                        "type": "string"
+                    }
+                ],
+                "minItems": 2,
+                "type": "array"
+            },
+            "type": "array"
+        },
+        "ReplayInitInfo153": {
+            "additionalProperties": false,
+            "properties": {
+                "blackInitCards": {
+                    "$ref": "#/definitions/ReplayInitCards"
+                },
+                "blackInitResources": {
+                    "type": "string"
+                },
+                "seed": {
+                    "type": "number"
+                },
+                "whiteInitCards": {
+                    "$ref": "#/definitions/ReplayInitCards"
+                },
+                "whiteInitResources": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "blackInitCards",
+                "blackInitResources",
+                "whiteInitCards",
+                "whiteInitResources"
+            ],
+            "type": "object"
+        },
+        "ReplayPlayerInfo153": {
+            "additionalProperties": false,
+            "properties": {
+                "numPlayers": {
+                    "enum": [
+                        2
+                    ],
+                    "type": "number"
+                },
+                "playerBots": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/definitions/ReplayBotInfo153"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/definitions/ReplayBotInfo153"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/definitions/ReplayBotInfo153"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        },
+                        {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/definitions/ReplayBotInfo153"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "playerIDs": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "number"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "playerNames": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                }
+            },
+            "required": [
+                "numPlayers",
+                "playerBots",
+                "playerIDs",
+                "playerNames"
+            ],
+            "type": "object"
+        },
+        "ReplayPlayerRating": {
+            "additionalProperties": false,
+            "properties": {
+                "botGamesPlayed": {
+                    "type": "number"
+                },
+                "casualGamesWon": {
+                    "type": "number"
+                },
+                "customGamesPlayed": {
+                    "type": "number"
+                },
+                "displayRating": {
+                    "type": "number"
+                },
+                "dominionELO": {
+                    "type": "number"
+                },
+                "exp": {
+                    "type": "number"
+                },
+                "hStars": {
+                    "type": "number"
+                },
+                "peakAdjustedShalevU": {
+                    "type": "number"
+                },
+                "ratedGamesPlayed": {
+                    "type": "number"
+                },
+                "score": {
+                    "additionalProperties": {
+                        "type": "number"
+                    },
+                    "type": "object"
+                },
+                "shalevU": {
+                    "type": "number"
+                },
+                "shalevV": {
+                    "type": "number"
+                },
+                "tier": {
+                    "type": "number"
+                },
+                "tierPercent": {
+                    "type": "number"
+                },
+                "version": {
+                    "type": "number"
+                },
+                "winLast": {
+                    "type": "boolean"
+                },
+                "winLastLast": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "tier",
+                "tierPercent"
+            ],
+            "type": "object"
+        },
+        "ReplayRatingInfo": {
+            "additionalProperties": false,
+            "properties": {
+                "expChanges": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": [
+                                    "null",
+                                    "number"
+                                ]
+                            },
+                            {
+                                "type": [
+                                    "null",
+                                    "number"
+                                ]
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": [
+                                "null",
+                                "number"
+                            ]
+                        },
+                        {
+                            "type": [
+                                "null",
+                                "number"
+                            ]
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "finalRatings": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/definitions/ReplayPlayerRating"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/definitions/ReplayPlayerRating"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/definitions/ReplayPlayerRating"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        },
+                        {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/definitions/ReplayPlayerRating"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "initialRatings": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/definitions/ReplayPlayerRating"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/definitions/ReplayPlayerRating"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/definitions/ReplayPlayerRating"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        },
+                        {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/definitions/ReplayPlayerRating"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "ratedGame": {
+                    "type": "boolean"
+                },
+                "ratingChanges": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "anyOf": [
+                                    {
+                                        "additionalItems": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "number"
+                                                },
+                                                {
+                                                    "type": "number"
+                                                }
+                                            ]
+                                        },
+                                        "items": [
+                                            {
+                                                "type": "number"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "additionalItems": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "number"
+                                                },
+                                                {
+                                                    "type": "number"
+                                                }
+                                            ]
+                                        },
+                                        "items": [
+                                            {
+                                                "type": "number"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "anyOf": [
+                                {
+                                    "additionalItems": {
+                                        "anyOf": [
+                                            {
+                                                "type": "number"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "items": [
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "minItems": 2,
+                                    "type": "array"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        },
+                        {
+                            "anyOf": [
+                                {
+                                    "additionalItems": {
+                                        "anyOf": [
+                                            {
+                                                "type": "number"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "items": [
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "minItems": 2,
+                                    "type": "array"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "scoreChanges": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": [
+                                    "null",
+                                    "number"
+                                ]
+                            },
+                            {
+                                "type": [
+                                    "null",
+                                    "number"
+                                ]
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": [
+                                "null",
+                                "number"
+                            ]
+                        },
+                        {
+                            "type": [
+                                "null",
+                                "number"
+                            ]
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "starChanges": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": [
+                                    "null",
+                                    "number"
+                                ]
+                            },
+                            {
+                                "type": [
+                                    "null",
+                                    "number"
+                                ]
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": [
+                                "null",
+                                "number"
+                            ]
+                        },
+                        {
+                            "type": [
+                                "null",
+                                "number"
+                            ]
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                }
+            },
+            "required": [
+                "finalRatings",
+                "initialRatings",
+                "ratingChanges"
+            ],
+            "type": "object"
+        },
+        "ReplayTimeInfo153": {
+            "additionalProperties": false,
+            "properties": {
+                "blackInitialTime": {
+                    "type": "number"
+                },
+                "correspondence": {
+                    "type": "boolean"
+                },
+                "graceCurrentTime": {
+                    "type": "number"
+                },
+                "gracePeriod": {
+                    "type": "number"
+                },
+                "playerCurrentTimeBanks": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "number"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "playerCurrentTimes": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "number"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "playerIncrements": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "number"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "playerInitialTimeBanks": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "number"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "playerTimeBankDilutions": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "number"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "turnNumber": {
+                    "type": "number"
+                },
+                "useClocks": {
+                    "type": "boolean"
+                },
+                "whiteInitialTime": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "blackInitialTime",
+                "correspondence",
+                "playerIncrements",
+                "playerInitialTimeBanks",
+                "playerTimeBankDilutions",
+                "useClocks",
+                "whiteInitialTime"
+            ],
+            "type": "object"
+        },
+        "ReplayVersionInfo": {
+            "additionalProperties": false,
+            "properties": {
+                "playerVersions": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 2,
+                    "type": "array"
+                },
+                "serverVersion": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "serverVersion"
+            ],
+            "type": "object"
+        }
+    },
+    "properties": {
+        "chatInfo": {
+            "properties": {
+            },
+            "type": "object"
+        },
+        "code": {
+            "type": "string"
+        },
+        "commandInfo": {
+            "$ref": "#/definitions/ReplayCommandInfo"
+        },
+        "deckInfo": {
+            "$ref": "#/definitions/ReplayDeckInfo153"
+        },
+        "endCondition": {
+            "type": "number"
+        },
+        "endTime": {
+            "type": "number"
+        },
+        "format": {
+            "type": "number"
+        },
+        "id": {
+            "type": "number"
+        },
+        "initInfo": {
+            "$ref": "#/definitions/ReplayInitInfo153"
+        },
+        "logInfo": {
+        },
+        "playerInfo": {
+            "$ref": "#/definitions/ReplayPlayerInfo153"
+        },
+        "ratingInfo": {
+            "$ref": "#/definitions/ReplayRatingInfo"
+        },
+        "rawHash": {
+            "type": "number"
+        },
+        "result": {
+            "type": "number"
+        },
+        "startTime": {
+            "type": "number"
+        },
+        "timeInfo": {
+            "$ref": "#/definitions/ReplayTimeInfo153"
+        },
+        "versionInfo": {
+            "$ref": "#/definitions/ReplayVersionInfo"
+        }
+    },
+    "required": [
+        "code",
+        "commandInfo",
+        "deckInfo",
+        "endCondition",
+        "endTime",
+        "format",
+        "initInfo",
+        "playerInfo",
+        "ratingInfo",
+        "result",
+        "startTime",
+        "timeInfo",
+        "versionInfo"
+    ],
+    "type": "object"
+}
+

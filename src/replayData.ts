@@ -56,8 +56,9 @@ export interface ReplayCommand {
 }
 
 export interface ReplayDeckInfo {
-    base: [ReplayDeckList, ReplayDeckList];
     deckName?: string;
+
+    base: [ReplayDeckList, ReplayDeckList];
     draft: [ReplayDeckList, ReplayDeckList];
     mergedDeck: [ReplayBlueprint];
     randomizer: [ReplayDeckList, ReplayDeckList];
@@ -73,10 +74,11 @@ export interface ReplayBlueprint {
 }
 
 export interface ReplayInitInfo {
+    eventInfo?: any; // FIXME
+    infiniteSupplies?: boolean;
+
     initCards: [ReplayInitCards, ReplayInitCards];
     initResources: [string, string];
-    infiniteSupplies?: boolean;
-    eventInfo?: any; // FIXME
 }
 
 export interface ReplayEventInfo {
@@ -88,26 +90,27 @@ export interface ReplayEventInfo {
 export type ReplayInitCards = Array<[number, string]>;
 
 export interface ReplayPlayerInfo {
-    displayName: string;
-    name: string;
-    loadingCompleted?: boolean;
-    bot?: string;
-    trophies?: Array<string | -1>;
-    id?: number;
-    percentLoaded?: number;
     avatarFrame?: string;
-    portrait?: string;
+    bot?: string;
     cosmetics?: { [unitName: string]: string };
+    displayName: string;
+    id?: number;
+    loadingCompleted?: boolean;
+    name: string;
+    percentLoaded?: number;
+    portrait?: string;
+    trophies?: Array<string | -1>;
 }
 
 export interface ReplayRatingInfo {
+    ratedGame?: boolean;
+
     finalRatings: [ReplayPlayerRating | null, ReplayPlayerRating | null];
     initialRatings: [ReplayPlayerRating | null, ReplayPlayerRating | null];
     ratingChanges: [[number, number] | null, [number, number] | null];
-    scoreChanges: [number | null, number | null];
+    scoreChanges?: [number | null, number | null];
 
     expChanges?: [number | null, number | null];
-    ratedGame?: boolean;
     starChanges?: [number | null, number | null];
 }
 
@@ -115,7 +118,7 @@ export interface ReplayPlayerRating {
     botGamesPlayed?: number;
     casualGamesWon?: number;
     customGamesPlayed?: number;
-    displayRating: number;
+    displayRating?: number;
     dominionELO?: number;
     exp?: number;
     hStars?: number;
@@ -135,11 +138,12 @@ export interface ReplayTimeInfo {
     correspondence: boolean;
     graceCurrentTime?: number;
     gracePeriod?: number;
+    turnNumber?: number;
+    useClocks: boolean;
+
     playerCurrentTimeBanks?: [number, number];
     playerCurrentTimes?: [number, number];
     playerTime: [ReplayPlayerTime, ReplayPlayerTime];
-    turnNumber?: number;
-    useClocks: boolean;
 }
 
 export interface ReplayPlayerTime {
