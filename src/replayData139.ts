@@ -6,7 +6,6 @@ import {
     ReplayCommandInfo, ReplayData, ReplayPlayerRating, ReplayRatingInfo, ReplayVersionInfo,
 } from './replayData.js';
 
-// typescript-json-schema --refs --aliasRefs --noExtraProps --required --strictNullChecks tsconfig.json <type>
 import {
     convert as convert153, ReplayDeckInfo153, ReplayInitInfo153, ReplayPlayerInfo153, ReplayTimeInfo153,
 } from './replayData153.js';

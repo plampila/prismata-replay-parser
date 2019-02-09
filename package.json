@@ -19,10 +19,11 @@
     "prismata-replay-parser": "lib/bin/prismataReplayParser.js"
   },
   "scripts": {
-    "lint": "tslint --project .",
-    "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "lint": "tslint --project .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "updateSchemas": "ts-node tools/generateSchemas.ts --update"
   },
   "dependencies": {
     "ajv": "^6.8.1",
@@ -31,11 +32,15 @@
     "timsort": "^0.3.0"
   },
   "devDependencies": {
+    "@types/json-stable-stringify": "^1.0.32",
     "@types/minimist": "^1.2.0",
     "@types/node": "^10.12.21",
     "@types/source-map-support": "^0.4.1",
     "@types/timsort": "^0.3.0",
+    "json-stable-stringify": "^1.0.1",
+    "ts-node": "^8.0.2",
     "tslint": "^5.12.1",
-    "typescript": "^3.3.1"
+    "typescript": "^3.3.1",
+    "typescript-json-schema": "^0.34.0"
   }
 }

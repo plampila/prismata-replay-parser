@@ -1,6 +1,5 @@
 import Ajv from 'ajv';
 
-// typescript-json-schema --refs --aliasRefs --noExtraProps --required --strictNullChecks tsconfig.json <type>
 import schema from './schemas/ReplayData.schema.json';
 import serverVersionSchema from './schemas/ReplayServerVersion.schema.json';
 

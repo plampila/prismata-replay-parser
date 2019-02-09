@@ -5,7 +5,6 @@ import {
     ReplayRatingInfo, ReplayTimeInfo, ReplayVersionInfo,
 } from './replayData.js';
 
-// typescript-json-schema --refs --aliasRefs --noExtraProps --required --strictNullChecks tsconfig.json <type>
 import schema from './schemas/ReplayData153.schema.json';
 
 const ajv = new Ajv({ allErrors: true });
