@@ -58,7 +58,6 @@ export class ReplayDataValidator {
     }
 
     public errorText(): string {
-        // return this.ajv.errorsText(this.lastSchema ? this.lastSchema.errors : undefined);
-        return this.lastSchema ? JSON.stringify(this.lastSchema.errors, undefined, 2) : 'nope';
+        return this.ajv.errorsText(this.lastSchema ? this.lastSchema.errors : undefined);
     }
 }

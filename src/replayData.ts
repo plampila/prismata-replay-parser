@@ -125,7 +125,7 @@ export interface ReplayRatingInfoStrict extends ReplayRatingInfo {
 }
 
 export interface ReplayPlayerRating {
-    displayRating?: number; // serverVersion > 153, optional 147-153
+    displayRating: number;
     tier: number;
     tierPercent: number;
 }

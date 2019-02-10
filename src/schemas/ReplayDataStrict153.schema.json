@@ -339,13 +339,10 @@
             ],
             "type": "object"
         },
-        "ReplayPlayerRatingStrict": {
+        "ReplayPlayerRatingStrict153": {
             "additionalProperties": false,
             "properties": {
                 "botGamesPlayed": {
-                    "type": "number"
-                },
-                "casualGamesWon": {
                     "type": "number"
                 },
                 "customGamesPlayed": {
@@ -409,11 +406,13 @@
                 "shalevU",
                 "shalevV",
                 "tier",
-                "tierPercent"
+                "tierPercent",
+                "winLast",
+                "winLastLast"
             ],
             "type": "object"
         },
-        "ReplayRatingInfoStrict": {
+        "ReplayRatingInfoStrict153": {
             "additionalProperties": false,
             "properties": {
                 "expChanges": {
@@ -456,7 +455,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRatingStrict"
+                                        "$ref": "#/definitions/ReplayPlayerRatingStrict153"
                                     },
                                     {
                                         "type": "null"
@@ -466,7 +465,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRatingStrict"
+                                        "$ref": "#/definitions/ReplayPlayerRatingStrict153"
                                     },
                                     {
                                         "type": "null"
@@ -479,7 +478,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRatingStrict"
+                                    "$ref": "#/definitions/ReplayPlayerRatingStrict153"
                                 },
                                 {
                                     "type": "null"
@@ -489,7 +488,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRatingStrict"
+                                    "$ref": "#/definitions/ReplayPlayerRatingStrict153"
                                 },
                                 {
                                     "type": "null"
@@ -506,7 +505,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRatingStrict"
+                                        "$ref": "#/definitions/ReplayPlayerRatingStrict153"
                                     },
                                     {
                                         "type": "null"
@@ -516,7 +515,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRatingStrict"
+                                        "$ref": "#/definitions/ReplayPlayerRatingStrict153"
                                     },
                                     {
                                         "type": "null"
@@ -529,7 +528,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRatingStrict"
+                                    "$ref": "#/definitions/ReplayPlayerRatingStrict153"
                                 },
                                 {
                                     "type": "null"
@@ -539,7 +538,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRatingStrict"
+                                    "$ref": "#/definitions/ReplayPlayerRatingStrict153"
                                 },
                                 {
                                     "type": "null"
@@ -749,10 +748,13 @@
                 }
             },
             "required": [
+                "expChanges",
                 "finalRatings",
                 "initialRatings",
+                "ratedGame",
                 "ratingChanges",
-                "scoreChanges"
+                "scoreChanges",
+                "starChanges"
             ],
             "type": "object"
         },
@@ -1000,7 +1002,7 @@
             "$ref": "#/definitions/ReplayPlayerInfoStrict153"
         },
         "ratingInfo": {
-            "$ref": "#/definitions/ReplayRatingInfoStrict"
+            "$ref": "#/definitions/ReplayRatingInfoStrict153"
         },
         "rawHash": {
             "type": "number"

@@ -271,7 +271,7 @@ interface PlayerInfo {
 }
 
 interface PlayerRating {
-    value?: number;
+    value: number;
     tier: number;
     tierPercent?: number;
 }
@@ -290,7 +290,7 @@ function parseRating(data: ReplayPlayerRating | null): PlayerRating | undefined 
     }
 
     const rating: PlayerRating = {
-        value: data.displayRating ? formatRating(data.displayRating) : undefined,
+        value: formatRating(data.displayRating),
         tier: data.tier,
     };
     if (rating.tier !== 10) {

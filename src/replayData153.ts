@@ -1,6 +1,8 @@
+ // tslint:disable:no-null-keyword
+
 import {
     ReplayBlueprint, ReplayCommandInfo, ReplayData, ReplayDeckInfo, ReplayInitCards, ReplayInitInfo, ReplayPlayerInfo,
-    ReplayRatingInfo, ReplayRatingInfoStrict, ReplayTimeInfo, ReplayVersionInfo, ReplayVersionInfoStrict,
+    ReplayRatingInfo, ReplayTimeInfo, ReplayVersionInfo, ReplayVersionInfoStrict,
 } from './replayData.js';
 
 export interface ReplayServerVersion {
@@ -23,7 +25,7 @@ export interface ReplayData153 {
     deckInfo: ReplayDeckInfo153;
     initInfo: ReplayInitInfo153;
     playerInfo: ReplayPlayerInfo153;
-    ratingInfo: ReplayRatingInfo;
+    ratingInfo: ReplayRatingInfo153;
     timeInfo: ReplayTimeInfo153;
     versionInfo: ReplayVersionInfo;
 }
@@ -38,7 +40,7 @@ export interface ReplayDataStrict153 extends ReplayData153 {
     initInfo: ReplayInitInfoStrict153;
     logInfo: { [name: string]: any };
     playerInfo: ReplayPlayerInfoStrict153;
-    ratingInfo: ReplayRatingInfoStrict;
+    ratingInfo: ReplayRatingInfoStrict153;
     timeInfo: ReplayTimeInfoStrict153;
     versionInfo: ReplayVersionInfoStrict;
 }
@@ -100,6 +102,44 @@ export interface ReplayBotInfoStrict153 extends ReplayBotInfo153 {
     params?: {};
 }
 
+export interface ReplayRatingInfo153 {
+    finalRatings: [ReplayPlayerRating153 | null, ReplayPlayerRating153 | null];
+    initialRatings: [ReplayPlayerRating153 | null, ReplayPlayerRating153 | null];
+    ratingChanges: [[number, number] | null, [number, number] | null];
+}
+
+export interface ReplayRatingInfoStrict153 extends ReplayRatingInfo153 {
+    ratedGame: boolean; // serverVersion <= 343
+
+    expChanges: [number | null, number | null];
+    finalRatings: [ReplayPlayerRatingStrict153 | null, ReplayPlayerRatingStrict153 | null];
+    initialRatings: [ReplayPlayerRatingStrict153 | null, ReplayPlayerRatingStrict153 | null];
+    scoreChanges: [number | null, number | null];
+    starChanges: [number | null, number | null];
+}
+
+export interface ReplayPlayerRating153 {
+    displayRating?: number; // serverVersion >= 147, optional
+    tier: number;
+    tierPercent: number;
+}
+
+export interface ReplayPlayerRatingStrict153 extends ReplayPlayerRating153 {
+    botGamesPlayed: number;
+    customGamesPlayed: number;
+    dominionELO: number;
+    exp?: number; // optional
+    hStars?: number; // optional
+    peakAdjustedShalevU?: number; // serverVersion >= 147, optional
+    ratedGamesPlayed: number;
+    score: { [num: string]: number };
+    shalevU: number;
+    shalevV: number;
+    version?: 0; // optional
+    winLast: boolean;
+    winLastLast: boolean;
+}
+
 export interface ReplayTimeInfo153 {
     blackInitialTime: number;
     whiteInitialTime: number;
@@ -133,7 +173,7 @@ export function convert(data: ReplayData153): ReplayData {
         deckInfo: convertDeckInfo(data.deckInfo),
         initInfo: convertInitInfo(data.initInfo),
         playerInfo: convertPlayerInfo(data.playerInfo),
-        ratingInfo: data.ratingInfo,
+        ratingInfo: convertRatingInfo(data.ratingInfo),
         timeInfo: convertTimeInfo(data.timeInfo),
         versionInfo: data.versionInfo,
     };
@@ -164,6 +204,14 @@ function convertPlayerInfo(data: ReplayPlayerInfo153): [ReplayPlayerInfo, Replay
         name: data.playerNames[1],
         displayName: data.playerNames[1],
     }];
+}
+
+function convertRatingInfo(data: ReplayRatingInfo153): ReplayRatingInfo {
+    return {
+        finalRatings: [null, null], // TODO
+        initialRatings: [null, null], // TODO
+        ratingChanges: data.ratingChanges,
+    };
 }
 
 function convertTimeInfo(data: ReplayTimeInfo153): ReplayTimeInfo {

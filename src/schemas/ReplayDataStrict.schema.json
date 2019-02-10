@@ -810,6 +810,7 @@
             "required": [
                 "botGamesPlayed",
                 "customGamesPlayed",
+                "displayRating",
                 "dominionELO",
                 "ratedGamesPlayed",
                 "score",

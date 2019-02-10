@@ -267,7 +267,7 @@
             ],
             "type": "object"
         },
-        "ReplayPlayerRating": {
+        "ReplayPlayerRating153": {
             "additionalProperties": false,
             "properties": {
                 "displayRating": {
@@ -286,7 +286,7 @@
             ],
             "type": "object"
         },
-        "ReplayRatingInfo": {
+        "ReplayRatingInfo153": {
             "additionalProperties": false,
             "properties": {
                 "finalRatings": {
@@ -295,7 +295,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRating"
+                                        "$ref": "#/definitions/ReplayPlayerRating153"
                                     },
                                     {
                                         "type": "null"
@@ -305,7 +305,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRating"
+                                        "$ref": "#/definitions/ReplayPlayerRating153"
                                     },
                                     {
                                         "type": "null"
@@ -318,7 +318,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRating"
+                                    "$ref": "#/definitions/ReplayPlayerRating153"
                                 },
                                 {
                                     "type": "null"
@@ -328,7 +328,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRating"
+                                    "$ref": "#/definitions/ReplayPlayerRating153"
                                 },
                                 {
                                     "type": "null"
@@ -345,7 +345,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRating"
+                                        "$ref": "#/definitions/ReplayPlayerRating153"
                                     },
                                     {
                                         "type": "null"
@@ -355,7 +355,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRating"
+                                        "$ref": "#/definitions/ReplayPlayerRating153"
                                     },
                                     {
                                         "type": "null"
@@ -368,7 +368,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRating"
+                                    "$ref": "#/definitions/ReplayPlayerRating153"
                                 },
                                 {
                                     "type": "null"
@@ -378,7 +378,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRating"
+                                    "$ref": "#/definitions/ReplayPlayerRating153"
                                 },
                                 {
                                     "type": "null"
@@ -647,7 +647,7 @@
             "$ref": "#/definitions/ReplayPlayerInfo153"
         },
         "ratingInfo": {
-            "$ref": "#/definitions/ReplayRatingInfo"
+            "$ref": "#/definitions/ReplayRatingInfo153"
         },
         "result": {
             "type": "number"
