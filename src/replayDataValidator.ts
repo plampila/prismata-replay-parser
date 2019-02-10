@@ -7,31 +7,58 @@ import { ReplayData153 } from './replayData153.js';
 import dataSchema from './schemas/ReplayData.schema.json';
 import data139Schema from './schemas/ReplayData139.schema.json';
 import data153Schema from './schemas/ReplayData153.schema.json';
+import dataStrictSchema from './schemas/ReplayDataStrict.schema.json';
+import dataStrict139Schema from './schemas/ReplayDataStrict139.schema.json';
+import dataStrict153Schema from './schemas/ReplayDataStrict153.schema.json';
 import serverVersionSchema from './schemas/ReplayServerVersion.schema.json';
 
-const ajv = new Ajv();
+export class ReplayDataValidator {
+    private readonly ajv: Ajv.Ajv;
+    private readonly validateSchema: Ajv.ValidateFunction;
+    private readonly validate139Schema: Ajv.ValidateFunction;
+    private readonly validate153Schema: Ajv.ValidateFunction;
+    private readonly validateServerVersionSchema: Ajv.ValidateFunction;
 
-const validateSchema = ajv.compile(dataSchema);
-const validate139Schema = ajv.compile(data139Schema);
-const validate153Schema = ajv.compile(data153Schema);
-const validateServerVersionSchema = ajv.compile(serverVersionSchema);
+    private lastSchema?: Ajv.ValidateFunction;
 
-export function validateServerVersion(data: any): data is ReplayServerVersion {
-    return validateServerVersionSchema(data) as boolean;
-}
+    constructor(strict: boolean) {
+        if (strict) {
+            this.ajv = new Ajv();
+            this.validateSchema = this.ajv.compile(dataStrictSchema);
+            this.validate139Schema = this.ajv.compile(dataStrict139Schema);
+            this.validate153Schema = this.ajv.compile(dataStrict153Schema);
+            this.validateServerVersionSchema = this.ajv.compile(serverVersionSchema);
+        } else {
+            this.ajv = new Ajv({ removeAdditional: true });
+            this.validateSchema = this.ajv.compile(dataSchema);
+            this.validate139Schema = this.ajv.compile(data139Schema);
+            this.validate153Schema = this.ajv.compile(data153Schema);
+            this.validateServerVersionSchema = this.ajv.compile(serverVersionSchema);
+        }
+    }
 
-export function validate(data: any): data is ReplayData {
-    return validateSchema(data) as boolean;
-}
+    public isReplayServerVersion(data: any): data is ReplayServerVersion {
+        this.lastSchema = this.validateServerVersionSchema;
+        return this.lastSchema(data) as boolean;
+    }
 
-export function validate139(data: any): data is ReplayData139 {
-    return validate139Schema(data) as boolean;
-}
+    public isReplayData(data: any): data is ReplayData {
+        this.lastSchema = this.validateSchema;
+        return this.lastSchema(data) as boolean;
+    }
 
-export function validate153(data: any): data is ReplayData153 {
-    return validate153Schema(data) as boolean;
-}
+    public isReplayData139(data: any): data is ReplayData139 {
+        this.lastSchema = this.validate139Schema;
+        return this.lastSchema(data) as boolean;
+    }
 
-export function validationErrorText(): string {
-    return ajv.errorsText(validateSchema.errors);
+    public isReplayData153(data: any): data is ReplayData153 {
+        this.lastSchema = this.validate153Schema;
+        return this.lastSchema(data) as boolean;
+    }
+
+    public errorText(): string {
+        // return this.ajv.errorsText(this.lastSchema ? this.lastSchema.errors : undefined);
+        return this.lastSchema ? JSON.stringify(this.lastSchema.errors, undefined, 2) : 'nope';
+    }
 }

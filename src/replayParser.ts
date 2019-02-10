@@ -8,7 +8,7 @@ import { Deck, GameState, GameStateSnapshot, InitialState, Player, Unit } from '
 import { ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime } from './replayData';
 import { convert as convert139 } from './replayData139';
 import { convert as convert153 } from './replayData153';
-import { validate, validate139, validate153, validateServerVersion, validationErrorText } from './replayDataValidator';
+import { ReplayDataValidator } from './replayDataValidator';
 import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget } from './util';
 
 const DRAW_END_CONDITIONS = [EndCondition.Repetition, EndCondition.DoubleDisconnect, EndCondition.Draw];
@@ -29,6 +29,9 @@ const TESTABLE_ACTIONS = [
     ActionType.UseAbility,
     ActionType.CancelUseAbility,
 ];
+
+let replayDataValidator: ReplayDataValidator | undefined;
+let replayDataValidatorStrict: ReplayDataValidator | undefined;
 
 function canExecuteAction(state: GameState, actionType: ActionType, unit: Unit): boolean {
     switch (actionType) {
@@ -339,6 +342,10 @@ export declare interface ReplayParser {
     on(event: 'action' | 'actionDone', listener: (action: ActionType, data?: any) => void): this;
 }
 
+interface ReplayParserOptions {
+    strict?: boolean;
+}
+
 export class ReplayParser extends EventEmitter {
     public readonly state: GameState = new GameState();
 
@@ -354,7 +361,7 @@ export class ReplayParser extends EventEmitter {
     private endDefenseSnapshot?: SnapshotImpl;
     private endActionSnapshot?: SnapshotImpl;
 
-    constructor(replayData: any) {
+    constructor(replayData: any, options: ReplayParserOptions = {}) {
         super();
 
         let parsed;
@@ -366,27 +373,37 @@ export class ReplayParser extends EventEmitter {
             parsed = replayData;
         }
 
-        if (!validateServerVersion(parsed)) {
+        let validator: ReplayDataValidator;
+        if (options.strict) {
+            if (replayDataValidatorStrict === undefined) {
+                replayDataValidatorStrict = new ReplayDataValidator(true);
+            }
+            validator = replayDataValidatorStrict;
+        } else {
+            if (replayDataValidator === undefined) {
+                replayDataValidator = new ReplayDataValidator(false);
+            }
+            validator = replayDataValidator;
+        }
+
+        if (!validator.isReplayServerVersion(parsed)) {
             throw new Error('Failed to parse server version.');
         }
 
         if (parsed.versionInfo.serverVersion <= 146) {
-            if (!validate139(parsed)) {
-                throw new Error(
-                    `Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText()}`);
+            if (!validator.isReplayData139(parsed)) {
+                throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validator.errorText()}`);
             }
             parsed = convert139(parsed);
         } else if (parsed.versionInfo.serverVersion <= 153) {
-            if (!validate153(parsed)) {
-                throw new Error(
-                    `Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText()}`);
+            if (!validator.isReplayData153(parsed)) {
+                throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validator.errorText()}`);
             }
             parsed = convert153(parsed);
+        } else if (!validator.isReplayData(parsed)) {
+            throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validator.errorText()}`);
         }
 
-        if (!validate(parsed)) {
-            throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validationErrorText()}`);
-        }
         this.data = parsed;
     }
 
@@ -1166,19 +1183,7 @@ export class ReplayParser extends EventEmitter {
     }
 
     public getTimeControl(player: Player): ReplayPlayerTime {
-        const timeInfo = this.data.timeInfo;
-        if (timeInfo.correspondence) {
-            throw new NotImplementedError('Correspondence time info');
-        }
-        if (!timeInfo.useClocks) {
-            throw new NotImplementedError('useClocks off in time info');
-        }
-        return {
-            bankDilution: timeInfo.playerTime[player].bankDilution,
-            initial: timeInfo.playerTime[player].initial,
-            bank: timeInfo.playerTime[player].bank,
-            increment: timeInfo.playerTime[player].increment,
-        };
+        return this.data.timeInfo.playerTime[player];
     }
 
     public getDeck(player: Player): Deck {

@@ -1,6 +1,6 @@
 import {
     ReplayBlueprint, ReplayCommandInfo, ReplayData, ReplayDeckInfo, ReplayInitCards, ReplayInitInfo, ReplayPlayerInfo,
-    ReplayRatingInfo, ReplayTimeInfo, ReplayVersionInfo,
+    ReplayRatingInfo, ReplayRatingInfoStrict, ReplayTimeInfo, ReplayVersionInfo, ReplayVersionInfoStrict,
 } from './replayData.js';
 
 export interface ReplayServerVersion {
@@ -16,20 +16,39 @@ export interface ReplayData153 {
     endCondition: number;
     endTime: number;
     format: number;
-    rawHash?: number;
     result: number;
     startTime: number;
-    id?: number;
 
-    chatInfo?: {};
     commandInfo: ReplayCommandInfo;
     deckInfo: ReplayDeckInfo153;
     initInfo: ReplayInitInfo153;
-    logInfo?: any;
     playerInfo: ReplayPlayerInfo153;
     ratingInfo: ReplayRatingInfo;
     timeInfo: ReplayTimeInfo153;
     versionInfo: ReplayVersionInfo;
+}
+
+export interface ReplayDataStrict153 extends ReplayData153 {
+    rawHash: number;
+    id: number;
+
+    chatInfo: {};
+    commandInfo: ReplayCommandInfoStrict153;
+    deckInfo: ReplayDeckInfoStrict153;
+    initInfo: ReplayInitInfoStrict153;
+    logInfo: { [name: string]: any };
+    playerInfo: ReplayPlayerInfoStrict153;
+    ratingInfo: ReplayRatingInfoStrict;
+    timeInfo: ReplayTimeInfoStrict153;
+    versionInfo: ReplayVersionInfoStrict;
+}
+
+export interface ReplayCommandInfoStrict153 extends ReplayCommandInfo {
+    clicksPerTurn: number[];
+    commandTimes: number[];
+    moveDurations: number[];
+    timeBanksRemaining: number[];
+    timesRemaining: number[];
 }
 
 export interface ReplayDeckInfo153 {
@@ -37,13 +56,15 @@ export interface ReplayDeckInfo153 {
 
     blackBase: string[];
     blackDominion: string[];
-    blackDraft?: string[];
 
     whiteBase: string[];
     whiteDominion: string[];
-    whiteDraft?: string[];
+}
 
-    skinInfo?: any;
+export interface ReplayDeckInfoStrict153 extends ReplayDeckInfo153 {
+    blackDraft?: string[]; // optional
+    whiteDraft?: string[]; // optional
+    skinInfo: { [name: string]: any }; // TODO
 }
 
 export interface ReplayInitInfo153 {
@@ -52,39 +73,51 @@ export interface ReplayInitInfo153 {
 
     whiteInitCards: ReplayInitCards;
     whiteInitResources: string;
+}
 
-    seed?: number;
+export interface ReplayInitInfoStrict153 extends ReplayInitInfo153 {
+    seed: number;
 }
 
 export interface ReplayPlayerInfo153 {
     playerIDs: [number, number];
-    numPlayers: 2;
     playerNames: [string, string];
     playerBots: [ReplayBotInfo153 | null, ReplayBotInfo153 | null];
+}
+
+export interface ReplayPlayerInfoStrict153 extends ReplayPlayerInfo153 {
+    numPlayers: 2;
+    playerBots: [ReplayBotInfoStrict153 | null, ReplayBotInfoStrict153 | null];
 }
 
 export interface ReplayBotInfo153 {
     name?: string;
     difficulty?: string;
+}
+
+export interface ReplayBotInfoStrict153 extends ReplayBotInfo153 {
     version?: number;
     params?: {};
 }
 
 export interface ReplayTimeInfo153 {
-    correspondence: boolean;
-    graceCurrentTime?: number;
-    gracePeriod?: number;
-    turnNumber?: number;
-    useClocks: boolean;
-
     blackInitialTime: number;
     whiteInitialTime: number;
 
-    playerCurrentTimeBanks?: [number, number];
-    playerCurrentTimes?: [number, number];
     playerIncrements: [number, number];
     playerInitialTimeBanks: [number, number];
     playerTimeBankDilutions: [number, number];
+}
+
+export interface ReplayTimeInfoStrict153 extends ReplayTimeInfo153 {
+    correspondence: false;
+    graceCurrentTime: number;
+    gracePeriod: number;
+    turnNumber: number;
+    useClocks: true;
+
+    playerCurrentTimeBanks: [number, number];
+    playerCurrentTimes: [number, number];
 }
 
 export function convert(data: ReplayData153): ReplayData {
@@ -93,16 +126,12 @@ export function convert(data: ReplayData153): ReplayData {
         endCondition: data.endCondition,
         endTime: data.endTime,
         format: data.format,
-        rawHash: data.rawHash,
         result: data.result,
         startTime: data.startTime,
-        id: data.id,
 
-        chatInfo: data.chatInfo,
         commandInfo: data.commandInfo,
         deckInfo: convertDeckInfo(data.deckInfo),
         initInfo: convertInitInfo(data.initInfo),
-        logInfo: data.logInfo,
         playerInfo: convertPlayerInfo(data.playerInfo),
         ratingInfo: data.ratingInfo,
         timeInfo: convertTimeInfo(data.timeInfo),
@@ -113,12 +142,8 @@ export function convert(data: ReplayData153): ReplayData {
 function convertDeckInfo(data: ReplayDeckInfo153): ReplayDeckInfo {
     return {
         base: [data.whiteBase, data.blackBase],
-        draft: [data.whiteDraft !== undefined ? data.whiteDraft : [],
-            data.blackDraft !== undefined ? data.blackDraft : []],
         mergedDeck: data.mergedDeck,
         randomizer: [data.whiteDominion, data.blackDominion],
-
-        skinInfo: data.skinInfo,
     };
 }
 
@@ -132,12 +157,10 @@ function convertInitInfo(data: ReplayInitInfo153): ReplayInitInfo {
 function convertPlayerInfo(data: ReplayPlayerInfo153): [ReplayPlayerInfo, ReplayPlayerInfo] {
     return [{
         bot: data.playerBots[0] !== null ? (data.playerBots[0].name || data.playerBots[0].difficulty) : undefined,
-        id: data.playerIDs[0],
         name: data.playerNames[0],
         displayName: data.playerNames[0],
     }, {
         bot: data.playerBots[1] !== null ? (data.playerBots[1].name || data.playerBots[1].difficulty) : undefined,
-        id: data.playerIDs[1],
         name: data.playerNames[1],
         displayName: data.playerNames[1],
     }];
@@ -145,14 +168,6 @@ function convertPlayerInfo(data: ReplayPlayerInfo153): [ReplayPlayerInfo, Replay
 
 function convertTimeInfo(data: ReplayTimeInfo153): ReplayTimeInfo {
     return {
-        correspondence: data.correspondence,
-        graceCurrentTime: data.graceCurrentTime,
-        gracePeriod: data.gracePeriod,
-        turnNumber: data.turnNumber,
-        useClocks: data.useClocks,
-
-        playerCurrentTimeBanks: data.playerCurrentTimeBanks,
-        playerCurrentTimes: data.playerCurrentTimes,
         playerTime: [{
             bank: data.playerInitialTimeBanks[0],
             bankDilution: data.playerTimeBankDilutions[0],

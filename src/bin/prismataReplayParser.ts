@@ -19,12 +19,18 @@ function loadSync(file: string): Buffer {
     return fs.readFileSync(file);
 }
 
-function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoints: boolean): void {
+interface ListGameplayEventsOptions {
+    showCommands?: boolean;
+    showUndoPoints?: boolean;
+    strict?: boolean;
+}
+
+function listGameplayEvents(replayData: any, options: ListGameplayEventsOptions = {}): void {
     function log(indentLevel: number, message: string): void {
         console.info(`${Array(indentLevel + 1).join('  ')}${message}`);
     }
 
-    const parser = new ReplayParser(replayData);
+    const parser = new ReplayParser(replayData, { strict: options.strict });
     const state = parser.state;
 
     console.info(`Code: ${parser.getCode()}`);
@@ -41,7 +47,7 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     console.info(`Start position P1: ${JSON.stringify(parser.getStartPosition(Player.First))}`);
     console.info(`Start position P2: ${JSON.stringify(parser.getStartPosition(Player.Second))}`);
 
-    if (showCommands) {
+    if (options.showCommands) {
         parser.on('command', (command: ReplayCommandType, id?: number) => {
             if (id !== undefined) {
                 log(1, `${command} ${id}`);
@@ -53,17 +59,17 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
 
     parser.on('action', (type: ActionType, data) => {
         if (data && data.target) {
-            log(showCommands ? 2 : 1, `Action: ${ActionType[type]} ${data.unit.name} -> ${data.target.name}`);
+            log(options.showCommands ? 2 : 1, `Action: ${ActionType[type]} ${data.unit.name} -> ${data.target.name}`);
         } else if (data && data.unit) {
-            log(showCommands ? 2 : 1, `${ActionType[type]} ${data.unit.name}`);
+            log(options.showCommands ? 2 : 1, `${ActionType[type]} ${data.unit.name}`);
         } else if (data && data.name) {
-            log(showCommands ? 2 : 1, `${ActionType[type]} ${data.name}`);
+            log(options.showCommands ? 2 : 1, `${ActionType[type]} ${data.name}`);
         } else {
-            log(showCommands ? 2 : 1, ActionType[type]);
+            log(options.showCommands ? 2 : 1, ActionType[type]);
         }
     });
 
-    if (showUndoPoints) {
+    if (options.showUndoPoints) {
         parser.on('undoSnapshot', () => {
             log(0, '-- undo point');
         });
@@ -74,19 +80,19 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
     });
 
     state.on('unitDestroyed', (unit, reason) => {
-        log(showCommands ? 3 : 2, `Unit destroyed (${reason}): ${unit.name}`);
+        log(options.showCommands ? 3 : 2, `Unit destroyed (${reason}): ${unit.name}`);
     });
 
     state.on('unitConstructed', unit => {
-        log(showCommands ? 3 : 2, `Unit constructed: ${unit.name}`);
+        log(options.showCommands ? 3 : 2, `Unit constructed: ${unit.name}`);
     });
 
     state.on('autoAction', (type, unit) => {
-        log(showCommands ? 3 : 2, `Automatic action: ${type} ${unit.name}`);
+        log(options.showCommands ? 3 : 2, `Automatic action: ${type} ${unit.name}`);
     });
 
     state.on('assignAttackBlocker', unit => {
-        log(showCommands ? 3 : 2, `Assigning attack to blocker: ${unit.name}`);
+        log(options.showCommands ? 3 : 2, `Assigning attack to blocker: ${unit.name}`);
     });
 
     parser.run();
@@ -136,7 +142,7 @@ function listGameplayEvents(replayData: any, showCommands: boolean, showUndoPoin
 
 async function main(): Promise<void> {
     sourceMapSupport.install();
-    const argv = minimist(process.argv.slice(2), { boolean: ['test', 'v', 'c', 'u'] });
+    const argv = minimist(process.argv.slice(2), { boolean: ['test', 'v', 'c', 'u', 'strict'] });
 
     if (argv._.length === 0) {
         console.error('No input files.');
@@ -154,7 +160,7 @@ async function main(): Promise<void> {
         }
         if (argv.test) {
             try {
-                const parser = new ReplayParser(data);
+                const parser = new ReplayParser(data, { strict: argv.strict });
                 parser.getCode();
                 parser.getStartTime();
                 parser.getEndTime();
@@ -181,7 +187,11 @@ async function main(): Promise<void> {
             }
         } else {
             try {
-                listGameplayEvents(data, argv.c, argv.u);
+                listGameplayEvents(data, {
+                    strict: argv.strict,
+                    showCommands: argv.c,
+                    showUndoPoints: argv.u,
+                });
             } catch (e) {
                 console.error(`${filename}:`, e);
                 if (e.data) {

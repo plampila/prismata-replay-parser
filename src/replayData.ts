@@ -11,32 +11,46 @@ export interface ReplayData {
     endCondition: number;
     endTime: number;
     format: number;
-    rawHash?: number;
     result: number;
-    seed?: number;
     startTime: number;
 
-    chatInfo?: {};
     commandInfo: ReplayCommandInfo;
     deckInfo: ReplayDeckInfo;
     initInfo: ReplayInitInfo;
-    logInfo?: any;
     playerInfo: [ReplayPlayerInfo, ReplayPlayerInfo];
     ratingInfo: ReplayRatingInfo;
     timeInfo: ReplayTimeInfo;
     versionInfo: ReplayVersionInfo;
+}
 
-    id?: number; // old replays
+export interface ReplayDataStrict extends ReplayData {
+    rawHash: number;
+    seed?: number; // serverVersion >= 379
+    id?: number; // serverVersion <= 184
+
+    chatInfo: {};
+    commandInfo: ReplayCommandInfoStrict;
+    deckInfo: ReplayDeckInfoStrict;
+    initInfo: ReplayInitInfoStrict;
+    logInfo: { [name: string]: any };
+    playerInfo: [ReplayPlayerInfoStrict, ReplayPlayerInfoStrict];
+    ratingInfo: ReplayRatingInfoStrict;
+    timeInfo: ReplayTimeInfoStrict;
+    versionInfo: ReplayVersionInfoStrict;
 }
 
 export interface ReplayCommandInfo {
-    clicksPerTurn?: number[];
-    commandForced?: boolean[];
     commandList: ReplayCommand[];
-    commandTimes?: number[];
-    moveDurations?: number[];
-    timeBanksRemaining?: number[];
-    timesRemaining?: number[];
+}
+
+interface ReplayCommandInfoStrict extends ReplayCommandInfo {
+    commandList: ReplayCommand[];
+    clicksPerTurn: number[];
+    commandForced?: boolean[]; // serverVersion >= 195
+    commandTimes: number[];
+    moveDurations: number[];
+    timeBanksRemaining: number[];
+    timesRemaining: number[];
 }
 
 export interface ReplayCommand {
@@ -46,14 +60,16 @@ export interface ReplayCommand {
 }
 
 export interface ReplayDeckInfo {
-    deckName?: string;
-
     base: [ReplayDeckList, ReplayDeckList];
-    draft: [ReplayDeckList, ReplayDeckList];
     mergedDeck: [ReplayBlueprint];
     randomizer: [ReplayDeckList, ReplayDeckList];
+}
 
-    skinInfo?: any; // old replays
+interface ReplayDeckInfoStrict extends ReplayDeckInfo {
+    deckName?: string; // serverVersion >= 215
+    skinInfo?: any; // serverVersion <= 194
+
+    draft: [ReplayDeckList, ReplayDeckList];
 }
 
 export type ReplayDeckList = Array<string | [string, number]>;
@@ -64,76 +80,86 @@ export interface ReplayBlueprint {
 }
 
 export interface ReplayInitInfo {
-    eventInfo?: any; // FIXME
     infiniteSupplies?: boolean;
 
     initCards: [ReplayInitCards, ReplayInitCards];
     initResources: [string, string];
 }
 
-export interface ReplayEventInfo {
-    fullName: string;
-    explanation: string;
-    customTab1Hotkeys: any;
+interface ReplayInitInfoStrict extends ReplayInitInfo {
+    eventInfo?: any; // TODO serverVersion >= 228
 }
 
 export type ReplayInitCards = Array<[number, string]>;
 
 export interface ReplayPlayerInfo {
-    avatarFrame?: string;
     bot?: string;
-    cosmetics?: { [unitName: string]: string };
     displayName: string;
-    id?: number;
-    loadingCompleted?: boolean;
     name: string;
-    percentLoaded?: number;
-    portrait?: string;
-    trophies?: Array<string | -1>;
+}
+
+interface ReplayPlayerInfoStrict extends ReplayPlayerInfo {
+    avatarFrame?: string; // serverVersion >= 219
+    cosmetics: { [unitName: string]: string };
+    id: number;
+    loadingCompleted?: boolean; // serverVersion >= 353
+    percentLoaded?: number; // serverVersion >= 353
+    portrait: string;
+    trophies: Array<string | -1>; // TODO: investigate -1
 }
 
 export interface ReplayRatingInfo {
-    ratedGame?: boolean;
-
     finalRatings: [ReplayPlayerRating | null, ReplayPlayerRating | null];
     initialRatings: [ReplayPlayerRating | null, ReplayPlayerRating | null];
     ratingChanges: [[number, number] | null, [number, number] | null];
-    scoreChanges?: [number | null, number | null];
+}
 
-    expChanges?: [number | null, number | null];
-    starChanges?: [number | null, number | null];
+export interface ReplayRatingInfoStrict extends ReplayRatingInfo {
+    ratedGame?: boolean; // serverVersion <= 343
+
+    expChanges?: [number | null, number | null]; // serverVersion <= 343
+    finalRatings: [ReplayPlayerRatingStrict | null, ReplayPlayerRatingStrict | null];
+    initialRatings: [ReplayPlayerRatingStrict | null, ReplayPlayerRatingStrict | null];
+    scoreChanges: [number | null, number | null];
+    starChanges?: [number | null, number | null]; // serverVersion <= 343
 }
 
 export interface ReplayPlayerRating {
-    botGamesPlayed?: number;
-    casualGamesWon?: number;
-    customGamesPlayed?: number;
-    displayRating?: number;
-    dominionELO?: number;
-    exp?: number;
-    hStars?: number;
-    peakAdjustedShalevU?: number;
-    ratedGamesPlayed?: number;
-    score?: { [num: string]: number };
-    shalevU?: number;
-    shalevV?: number;
+    displayRating?: number; // serverVersion > 153, optional 147-153
     tier: number;
     tierPercent: number;
-    version?: number;
-    winLast?: boolean;
-    winLastLast?: boolean;
+}
+
+export interface ReplayPlayerRatingStrict extends ReplayPlayerRating {
+    botGamesPlayed: number;
+    casualGamesWon?: number; // serverVersion >= 345, optional
+    customGamesPlayed: number;
+    dominionELO: number;
+    exp?: number; // optional
+    hStars?: number; // optional
+    peakAdjustedShalevU?: number; // serverVersion >= 147, optional
+    ratedGamesPlayed: number;
+    score: { [num: string]: number };
+    shalevU: number;
+    shalevV: number;
+    version?: 0; // optional
+    winLast?: boolean; // optional after serverVersion >= 353
+    winLastLast?: boolean; // optional after serverVersion >= 353
 }
 
 export interface ReplayTimeInfo {
-    correspondence: boolean;
-    graceCurrentTime?: number;
-    gracePeriod?: number;
-    turnNumber?: number;
-    useClocks: boolean;
-
-    playerCurrentTimeBanks?: [number, number];
-    playerCurrentTimes?: [number, number];
     playerTime: [ReplayPlayerTime, ReplayPlayerTime];
+}
+
+export interface ReplayTimeInfoStrict extends ReplayTimeInfo {
+    correspondence: false;
+    graceCurrentTime: number;
+    gracePeriod: number;
+    turnNumber: number;
+    useClocks: true;
+
+    playerCurrentTimeBanks: [number, number];
+    playerCurrentTimes: [number, number];
 }
 
 export interface ReplayPlayerTime {
@@ -145,5 +171,8 @@ export interface ReplayPlayerTime {
 
 export interface ReplayVersionInfo {
     serverVersion: number;
-    playerVersions?: [string, string];
+}
+
+export interface ReplayVersionInfoStrict extends ReplayVersionInfo {
+    playerVersions: ['', ''];
 }
