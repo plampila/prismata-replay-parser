@@ -2,8 +2,9 @@ import { strict as assert } from 'assert';
 import { EventEmitter } from 'events';
 import * as timsort from 'timsort';
 
+import { Blueprint, SacrificeRule, Script } from './blueprint';
 import { ActionType } from './constants';
-import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
+import { DataError, InvalidStateError } from './customErrors';
 import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, validTarget } from './util';
 
 export enum Player {
@@ -12,24 +13,8 @@ export enum Player {
 }
 
 export type Unit = any;
-export interface Blueprint {
-    [property: string]: any;
-}
 
 export type Deck = Blueprint[];
-
-/** Unit name, target (own or enemy), count, build time, lifespan */
-type ScriptCreateRule = [string, 'own' | 'enemy', number, number?, number?];
-
-interface Script {
-    create?: ScriptCreateRule[];
-    delay?: number;
-    receive?: string;
-    selfsac?: true;
-}
-
-/** Unit name and count */
-type SacrificeRule = [string, number];
 
 export interface Supplies {
     [unitName: string]: number;
@@ -44,86 +29,12 @@ export interface Resources {
     attack: number;
 }
 
-const UNIT_ATTRIBUTE_SUPPORT: {
-    [attribute: string]: boolean | undefined;
-} = {
-    // Basic info
-    buildTime: true,
-    charge: true, // Stamina
-    defaultBlocking: true,
-    fragile: true,
-    HPGained: true,
-    HPMax: true,
-    lifespan: true,
-    name: true,
-    rarity: true,
-    spell: true,
-    toughness: true, // Health
-    undefendable: true, // Frontline
-
-    // Click abilities
-    abilityCost: true,
-    abilityNetherfy: true, // Deadeye snipe
-    abilitySac: true,
-    abilityScript: true,
-    HPUsed: true, // Health cost to use ability
-    targetAction: true,
-    targetAmount: true,
-
-    // Purchasing
-    buyCost: true,
-    buySac: true,
-    buyScript: true,
-
-    // Other
-    beginOwnTurnScript: true,
-    goldResonate: true, // One gold per named unit, eg. Savior
-    resonate: true, // One attack per named unit, eg. Antima Comet
-    condition: true, // Targeted snipe action limitations
-
-    // Not needed
-    assignedBlocking: true,
-    baseSet: true,
-    description: true,
-    fullDescription: true,
-    fullDescription_en: true,
-    group: true,
-    needs: true,
-    originalName: true, // Added by us to save remapped name
-    position: true,
-    potentiallyMoreAttack: true, // Apollo snipe UI
-    score: true,
-    UIArt: true,
-    UIName: true,
-    UIShortname: true,
-    xOffset: true,
-    yOffset: true,
-};
-
-const RARITIES: {
-    [name: string]: number | undefined;
-} = {
-    trinket: 20,
-    normal: 10,
-    rare: 4,
-    legendary: 1,
-};
-
 const DEFAULT_PROPERTIES: {
     [property: string]: boolean | number;
 } = {
-    abilityNetherfy: false,
     assignedAttack: 0,
-    buildTime: 1,
-    defaultBlocking: false,
     disruption: 0,
-    fragile: false,
-    HPGained: 0,
-    HPUsed: 0,
     sacrificed: false,
-    spell: false,
-    toughness: 1, // Some units such as Gauss Charge has no health defined
-    undefendable: false,
 };
 
 type InitialUnitList = Array<[number, string]>;
@@ -278,20 +189,13 @@ export class GameState extends EventEmitter {
         }
     }
 
-    private constructUnit(unitData: Blueprint, buildTime?: number, player: Player = this.activePlayer,
+    private constructUnit(blueprint: Blueprint, buildTime?: number, player: Player = this.activePlayer,
                           lifespan?: number): Unit {
-        Object.keys(unitData).forEach(key => {
-            if (UNIT_ATTRIBUTE_SUPPORT[key] === undefined) {
-                throw new DataError('Unknown unit attribute.', key);
-            } else if (!UNIT_ATTRIBUTE_SUPPORT[key]) {
-                throw new NotImplementedError(`Unit attribute ${key}`);
-            }
-        });
-        if (unitData.UIShortname === 'Robo Santa') {
+        /*if (blueprint.UIShortname === 'Robo Santa') {
             throw new NotImplementedError('Robo Santa');
-        }
+        }*/
 
-        const unit = Object.create(unitData);
+        const unit = Object.create(blueprint);
         unit.player = player;
         const delay = buildTime !== undefined ? buildTime : unit.buildTime;
         if (delay !== 0) {
@@ -329,11 +233,10 @@ export class GameState extends EventEmitter {
                 if (blueprint === undefined) {
                     throw new DataError('Unknown unit.', x);
                 }
-                const supply = RARITIES[blueprint.rarity];
-                if (supply === undefined) {
-                    throw new DataError('Unknown rarity.', blueprint.rarity);
+                if (blueprint.supply === undefined) {
+                    throw new DataError('Unit with no supply.', x);
                 }
-                this.supplies[player][x] = infiniteSupplies ? Infinity : supply;
+                this.supplies[player][x] = infiniteSupplies ? Infinity : blueprint.supply;
             }
         });
 
@@ -694,6 +597,9 @@ export class GameState extends EventEmitter {
         if (!this.supplies[this.activePlayer][blueprint.name]) {
             return false;
         }
+        if (blueprint.buyCost === undefined) {
+            throw new InvalidStateError('Blueprint buyCost not set.');
+        }
         if (!this.canRemoveResources(blueprint.buyCost)) {
             return false;
         }
@@ -716,6 +622,9 @@ export class GameState extends EventEmitter {
         this.supplies[this.activePlayer][blueprint.name]--;
         assert(this.supplies[this.activePlayer][blueprint.name] >= 0);
 
+        if (blueprint.buyCost === undefined) {
+            throw new InvalidStateError('Blueprint buyCost not set.');
+        }
         this.removeResources(blueprint.buyCost);
 
         if (blueprint.buySac) {

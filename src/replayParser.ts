@@ -2,6 +2,7 @@ import { strict as assert } from 'assert';
 import { EventEmitter } from 'events';
 import * as timsort from 'timsort';
 
+import { convertBlueprintFromReplay, renameBlueprintFields } from './blueprint';
 import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { Deck, GameState, GameStateSnapshot, InitialState, Player, Unit } from './gameState';
@@ -9,7 +10,7 @@ import { ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime } from 
 import { convert as convert146 } from './replayData146';
 import { convert as convert153 } from './replayData153';
 import { ReplayDataValidator } from './replayDataValidator';
-import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget } from './util';
+import { blocking, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget } from './util';
 
 const DRAW_END_CONDITIONS = [EndCondition.Repetition, EndCondition.DoubleDisconnect, EndCondition.Draw];
 
@@ -169,92 +170,74 @@ function parseCommand(data: ReplayCommand): Command {
 }
 
 function parseDeckAndInitInfo(data: ReplayData): InitialState {
-    const info: InitialState = {
-        deck: deepClone(data.deckInfo.mergedDeck),
-        baseSets: data.deckInfo.base,
-        randomSets: data.deckInfo.randomizer,
-        initCards: data.initInfo.initCards,
+    const baseSets = data.deckInfo.base;
+    const deck = data.deckInfo.mergedDeck.map(x => convertBlueprintFromReplay(x));
+    const initCards = data.initInfo.initCards;
+    const randomSets = data.deckInfo.randomizer;
+
+    // Renames are used even in new replays for some event units
+    const renames: Map<string, string> = new Map();
+    data.deckInfo.mergedDeck.forEach(x => {
+        if (x.UIName !== undefined && x.UIName !== x.name) {
+            renames.set(x.name, x.UIName);
+        }
+    });
+
+    deck.forEach(x => {
+        renameBlueprintFields(x, renames);
+    });
+
+    initCards.forEach(initCardsForPlayer => {
+        initCardsForPlayer.forEach(x => {
+            const newName = renames.get(x[1]);
+            if (newName !== undefined) {
+                x[1] = newName;
+            }
+        });
+    });
+
+    baseSets.forEach(baseSetForPlayer => {
+        for (let i = 0; i < baseSetForPlayer.length; i++) {
+            const x = baseSetForPlayer[i];
+            if (Array.isArray(x)) {
+                const newName = renames.get(x[0]);
+                if (newName !== undefined) {
+                    x[0] = newName;
+                }
+            } else {
+                const newName = renames.get(x);
+                if (newName !== undefined) {
+                    baseSetForPlayer[i] = newName;
+                }
+            }
+        }
+    });
+
+    randomSets.forEach(randomSetForPlayer => {
+        for (let i = 0; i < randomSetForPlayer.length; i++) {
+            const x = randomSetForPlayer[i];
+            if (Array.isArray(x)) {
+                const newName = renames.get(x[0]);
+                if (newName !== undefined) {
+                    x[0] = newName;
+                }
+            } else {
+                const newName = renames.get(x);
+                if (newName !== undefined) {
+                    randomSetForPlayer[i] = newName;
+                }
+            }
+        }
+    });
+
+    return {
+        deck,
+        baseSets,
+        randomSets,
+        initCards,
         initResources: data.initInfo.initResources,
         infiniteSupplies: data.initInfo.infiniteSupplies,
     };
-
-    // Renames are used even in new replays for some event units
-    const renames: { [oldName: string]: string } = {};
-    info.deck.filter(x => x.UIName && x.UIName !== x.name)
-        .forEach(x => {
-            renames[x.name] = x.UIName;
-            x.originalName = x.name;
-            x.name = x.UIName;
-            delete x.UIName;
-        });
-
-    if (Object.keys(renames).length > 0) {
-        info.deck.forEach(x => {
-            ['resonate', 'goldResonate'].forEach(key => {
-                if (renames[x[key]]) {
-                    x[key] = renames[x[key]];
-                }
-            });
-
-            ['abilityScript', 'buyScript', 'beginOwnTurnScript']
-                .filter(key => x[key] && x[key].create)
-                .forEach(key => {
-                    x[key].create.forEach((rule: any) => {
-                        if (renames[rule[0]]) {
-                            rule[0] = renames[rule[0]];
-                        }
-                    });
-                });
-
-            ['abilitySac', 'buySac'].filter(key => x[key]).forEach(key => {
-                x[key].forEach((rule: any) => {
-                    if (renames[rule[0]]) {
-                        rule[0] = renames[rule[0]];
-                    }
-                });
-            });
-        });
-
-        info.initCards.forEach(initCardsForPlayer => {
-            initCardsForPlayer.forEach(x => {
-                if (renames[x[1]]) {
-                    x[1] = renames[x[1]];
-                }
-            });
-        });
-
-        info.baseSets.forEach(baseSetForPlayer => {
-            for (let i = 0; i < baseSetForPlayer.length; i++) {
-                const x = baseSetForPlayer[i];
-                if (Array.isArray(x)) {
-                    if (renames[x[0]]) {
-                        x[0] = renames[x[0]];
-                    }
-                } else {
-                    if (renames[x]) {
-                        baseSetForPlayer[i] = renames[x];
-                    }
-                }
-            }
-        });
-
-        info.randomSets.forEach(randomSetForPlayer => {
-            for (let i = 0; i < randomSetForPlayer.length; i++) {
-                const x = randomSetForPlayer[i];
-                if (Array.isArray(x)) {
-                    if (renames[x[0]]) {
-                        x[0] = renames[x[0]];
-                    }
-                } else {
-                    if (renames[x]) {
-                        randomSetForPlayer[i] = renames[x];
-                    }
-                }
-            }
-        });
-    }
-
-    return info;
 }
 
 interface PlayerInfo {

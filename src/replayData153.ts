@@ -1,8 +1,8 @@
  // tslint:disable:no-null-keyword
 
 import {
-    ReplayBlueprint, ReplayCommandInfo, ReplayData, ReplayDeckInfo, ReplayInitCards, ReplayInitInfo, ReplayPlayerInfo,
-    ReplayRatingInfo, ReplayTimeInfo, ReplayVersionInfo, ReplayVersionInfoStrict,
+    ReplayBlueprint, ReplayBlueprintStrict, ReplayCommandInfo, ReplayData, ReplayDeckInfo, ReplayInitCards,
+    ReplayInitInfo, ReplayPlayerInfo, ReplayRatingInfo, ReplayTimeInfo, ReplayVersionInfo, ReplayVersionInfoStrict,
 } from './replayData.js';
 
 export interface ReplayServerVersion {
@@ -54,7 +54,7 @@ export interface ReplayCommandInfoStrict153 extends ReplayCommandInfo {
 }
 
 export interface ReplayDeckInfo153 {
-    mergedDeck: [ReplayBlueprint];
+    mergedDeck: ReplayBlueprint[];
 
     blackBase: string[];
     blackDominion: string[];
@@ -64,6 +64,8 @@ export interface ReplayDeckInfo153 {
 }
 
 export interface ReplayDeckInfoStrict153 extends ReplayDeckInfo153 {
+    mergedDeck: ReplayBlueprintStrict[];
+
     blackDraft?: string[]; // optional
     whiteDraft?: string[]; // optional
     skinInfo: { [name: string]: any }; // TODO

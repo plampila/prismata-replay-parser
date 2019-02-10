@@ -64,7 +64,7 @@ export interface ReplayCommandStrict extends ReplayCommand {
 
 export interface ReplayDeckInfo {
     base: [ReplayDeckList, ReplayDeckList];
-    mergedDeck: [ReplayBlueprint];
+    mergedDeck: ReplayBlueprint[];
     randomizer: [ReplayDeckList, ReplayDeckList];
 }
 
@@ -73,13 +73,88 @@ interface ReplayDeckInfoStrict extends ReplayDeckInfo {
     skinInfo?: { [name: string]: any }; // serverVersion <= 194
 
     draft: [ReplayDeckList, ReplayDeckList];
+    mergedDeck: ReplayBlueprintStrict[];
 }
 
 export type ReplayDeckList = Array<string | [string, number]>;
 
 export interface ReplayBlueprint {
     name: string;
-    [attribute: string]: any;
+    UIName?: string;
+
+    // Basic info
+    buildTime?: number;
+    charge?: number;
+    defaultBlocking?: ReplayBlueprintBoolean;
+    fragile?: ReplayBlueprintBoolean;
+    HPGained?: number;
+    HPMax?: number;
+    lifespan?: ReplayBlueprintNumber;
+    rarity?: 'trinket' | 'normal' | 'rare' | 'legendary' | 'unbuyable'; // FIXME: unbuyable only in old?
+    spell?: ReplayBlueprintBoolean;
+    toughness?: number;
+    undefendable?: ReplayBlueprintBoolean;
+
+    // Click abilities
+    abilityCost?: ReplayBlueprintString;
+    abilityNetherfy?: boolean;
+    abilitySac?: ReplayBlueprintSacrificeRule[];
+    abilityScript?: ReplayBlueprintScript;
+    HPUsed?: number;
+    targetAction?: string; // TODO: enum
+    targetAmount?: number;
+
+    // Purchasing
+    buyCost?: string;
+    buySac?: ReplayBlueprintSacrificeRule[];
+    buyScript?: ReplayBlueprintScript;
+
+    // Other
+    beginOwnTurnScript?: ReplayBlueprintScript;
+    goldResonate?: string;
+    resonate?: string;
+    condition?: ReplayBlueprintCondition;
+}
+
+export interface ReplayBlueprintStrict extends ReplayBlueprint {
+    assignedBlocking?: ReplayBlueprintBoolean;
+    baseSet?: ReplayBlueprintBoolean;
+    description?: string;
+    fullDescription?: [string];
+    fullDescription_en?: [string];
+    group?: string;
+    needs?: string[];
+    position?: ReplayBlueprintNumber;
+    potentiallyMoreAttack?: ReplayBlueprintBoolean; // Apollo snipe UI
+    score?: ReplayBlueprintNumber;
+    UIArt?: string;
+    UIShortname?: string;
+    xOffset?: number;
+    yOffset?: number;
+}
+
+type ReplayBlueprintBoolean = 0 | 1;
+type ReplayBlueprintNumber = number | string;
+type ReplayBlueprintString = string | number;
+
+type ReplayBlueprintSacrificeRule = [string] | [string, number];
+
+export interface ReplayBlueprintScript {
+    create?: ReplayBlueprintScriptCreateRule[];
+    delay?: number;
+    receive?: ReplayBlueprintString;
+    selfsac?: true;
+}
+
+type ReplayBlueprintScriptCreateRule = [string, 'own' | 'opponent', number?, number?, number?];
+
+interface ReplayBlueprintCondition {
+    isABC?: 1;
+    healthAtMost?: number;
+    nameIn?: string[];
+    isEngineerTempHack?: 1;
+    notBlocking?: true;
+    card?: string;
 }
 
 export interface ReplayInitInfo {

@@ -2,28 +2,399 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
     "definitions": {
-        "Array": {
-            "items": {
-                "anyOf": [
-                    {
-                        "enum": [
-                            -1
-                        ],
-                        "type": "number"
-                    },
-                    {
-                        "type": "string"
-                    }
-                ]
-            },
-            "type": "array"
-        },
-        "ReplayBlueprint": {
-            "additionalProperties": {
-            },
+        "ReplayBlueprintCondition": {
+            "additionalProperties": false,
             "properties": {
+                "card": {
+                    "type": "string"
+                },
+                "healthAtMost": {
+                    "type": "number"
+                },
+                "isABC": {
+                    "enum": [
+                        1
+                    ],
+                    "type": "number"
+                },
+                "isEngineerTempHack": {
+                    "enum": [
+                        1
+                    ],
+                    "type": "number"
+                },
+                "nameIn": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "notBlocking": {
+                    "enum": [
+                        true
+                    ],
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "ReplayBlueprintScript": {
+            "additionalProperties": false,
+            "properties": {
+                "create": {
+                    "items": {
+                        "additionalItems": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "enum": [
+                                        "opponent",
+                                        "own"
+                                    ],
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "number"
+                                }
+                            ]
+                        },
+                        "items": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "enum": [
+                                    "opponent",
+                                    "own"
+                                ],
+                                "type": "string"
+                            },
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "number"
+                            }
+                        ],
+                        "minItems": 2,
+                        "type": "array"
+                    },
+                    "type": "array"
+                },
+                "delay": {
+                    "type": "number"
+                },
+                "receive": {
+                    "type": [
+                        "string",
+                        "number"
+                    ]
+                },
+                "selfsac": {
+                    "enum": [
+                        true
+                    ],
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "ReplayBlueprintStrict": {
+            "additionalProperties": false,
+            "properties": {
+                "HPGained": {
+                    "type": "number"
+                },
+                "HPMax": {
+                    "type": "number"
+                },
+                "HPUsed": {
+                    "type": "number"
+                },
+                "UIArt": {
+                    "type": "string"
+                },
+                "UIName": {
+                    "type": "string"
+                },
+                "UIShortname": {
+                    "type": "string"
+                },
+                "abilityCost": {
+                    "type": [
+                        "string",
+                        "number"
+                    ]
+                },
+                "abilityNetherfy": {
+                    "type": "boolean"
+                },
+                "abilitySac": {
+                    "items": {
+                        "anyOf": [
+                            {
+                                "additionalItems": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ]
+                                },
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            {
+                                "additionalItems": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "minItems": 1,
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "type": "array"
+                },
+                "abilityScript": {
+                    "$ref": "#/definitions/ReplayBlueprintScript"
+                },
+                "assignedBlocking": {
+                    "enum": [
+                        0,
+                        1
+                    ],
+                    "type": "number"
+                },
+                "baseSet": {
+                    "enum": [
+                        0,
+                        1
+                    ],
+                    "type": "number"
+                },
+                "beginOwnTurnScript": {
+                    "$ref": "#/definitions/ReplayBlueprintScript"
+                },
+                "buildTime": {
+                    "type": "number"
+                },
+                "buyCost": {
+                    "type": "string"
+                },
+                "buySac": {
+                    "items": {
+                        "anyOf": [
+                            {
+                                "additionalItems": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ]
+                                },
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            {
+                                "additionalItems": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "minItems": 1,
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "type": "array"
+                },
+                "buyScript": {
+                    "$ref": "#/definitions/ReplayBlueprintScript"
+                },
+                "charge": {
+                    "type": "number"
+                },
+                "condition": {
+                    "$ref": "#/definitions/ReplayBlueprintCondition"
+                },
+                "defaultBlocking": {
+                    "enum": [
+                        0,
+                        1
+                    ],
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "fragile": {
+                    "enum": [
+                        0,
+                        1
+                    ],
+                    "type": "number"
+                },
+                "fullDescription": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1,
+                    "type": "array"
+                },
+                "fullDescription_en": {
+                    "additionalItems": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "items": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1,
+                    "type": "array"
+                },
+                "goldResonate": {
+                    "type": "string"
+                },
+                "group": {
+                    "type": "string"
+                },
+                "lifespan": {
+                    "type": [
+                        "string",
+                        "number"
+                    ]
+                },
                 "name": {
                     "type": "string"
+                },
+                "needs": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "position": {
+                    "type": [
+                        "string",
+                        "number"
+                    ]
+                },
+                "potentiallyMoreAttack": {
+                    "enum": [
+                        0,
+                        1
+                    ],
+                    "type": "number"
+                },
+                "rarity": {
+                    "enum": [
+                        "legendary",
+                        "normal",
+                        "rare",
+                        "trinket",
+                        "unbuyable"
+                    ],
+                    "type": "string"
+                },
+                "resonate": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": [
+                        "string",
+                        "number"
+                    ]
+                },
+                "spell": {
+                    "enum": [
+                        0,
+                        1
+                    ],
+                    "type": "number"
+                },
+                "targetAction": {
+                    "type": "string"
+                },
+                "targetAmount": {
+                    "type": "number"
+                },
+                "toughness": {
+                    "type": "number"
+                },
+                "undefendable": {
+                    "enum": [
+                        0,
+                        1
+                    ],
+                    "type": "number"
+                },
+                "xOffset": {
+                    "type": "number"
+                },
+                "yOffset": {
+                    "type": "number"
                 }
             },
             "required": [
@@ -391,19 +762,9 @@
                     "type": "array"
                 },
                 "mergedDeck": {
-                    "additionalItems": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/definitions/ReplayBlueprint"
-                            }
-                        ]
+                    "items": {
+                        "$ref": "#/definitions/ReplayBlueprintStrict"
                     },
-                    "items": [
-                        {
-                            "$ref": "#/definitions/ReplayBlueprint"
-                        }
-                    ],
-                    "minItems": 1,
                     "type": "array"
                 },
                 "randomizer": {
@@ -739,10 +1100,24 @@
                     "type": "string"
                 },
                 "trophies": {
-                    "$ref": "#/definitions/Array"
+                    "items": {
+                        "anyOf": [
+                            {
+                                "enum": [
+                                    -1
+                                ],
+                                "type": "number"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "type": "array"
                 }
             },
             "required": [
+                "bot",
                 "cosmetics",
                 "displayName",
                 "id",

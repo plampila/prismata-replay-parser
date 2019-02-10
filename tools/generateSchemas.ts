@@ -9,7 +9,6 @@ import * as TJS from 'typescript-json-schema'; // tslint:disable-line:no-implici
 
 const SETTINGS: TJS.PartialArgs = {
     ref: true,
-    aliasRef: true,
     noExtraProps: true,
     required: true,
     strictNullChecks: true,
