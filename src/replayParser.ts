@@ -142,12 +142,7 @@ function parseCommand(data: ReplayCommand): Command {
         return {
             command: ReplayCommandType.Emote,
             player: data._id,
-            params: data._params,
         };
-    }
-
-    if (data._params !== undefined) {
-        throw new DataError('Non-emote command with _params.', data);
     }
 
     const id = data._id;

@@ -44,7 +44,7 @@ export interface ReplayCommandInfo {
 }
 
 interface ReplayCommandInfoStrict extends ReplayCommandInfo {
-    commandList: ReplayCommand[];
+    commandList: ReplayCommandStrict[];
     clicksPerTurn: number[];
     commandForced?: boolean[]; // serverVersion >= 195
     commandTimes: number[];
@@ -56,7 +56,10 @@ interface ReplayCommandInfoStrict extends ReplayCommandInfo {
 export interface ReplayCommand {
     _type: string;
     _id: number;
-    _params?: any;
+}
+
+export interface ReplayCommandStrict extends ReplayCommand {
+    _params?: {};
 }
 
 export interface ReplayDeckInfo {
@@ -67,7 +70,7 @@ export interface ReplayDeckInfo {
 
 interface ReplayDeckInfoStrict extends ReplayDeckInfo {
     deckName?: string; // serverVersion >= 215
-    skinInfo?: any; // serverVersion <= 194
+    skinInfo?: { [name: string]: any }; // serverVersion <= 194
 
     draft: [ReplayDeckList, ReplayDeckList];
 }
@@ -80,7 +83,7 @@ export interface ReplayBlueprint {
 }
 
 export interface ReplayInitInfo {
-    infiniteSupplies?: boolean;
+    infiniteSupplies?: boolean; // serverVersion >= 238, optional
 
     initCards: [ReplayInitCards, ReplayInitCards];
     initResources: [string, string];
@@ -93,7 +96,7 @@ interface ReplayInitInfoStrict extends ReplayInitInfo {
 export type ReplayInitCards = Array<[number, string]>;
 
 export interface ReplayPlayerInfo {
-    bot?: string;
+    bot: string;
     displayName: string;
     name: string;
 }

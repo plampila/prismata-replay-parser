@@ -33,8 +33,6 @@
                 "_id": {
                     "type": "number"
                 },
-                "_params": {
-                },
                 "_type": {
                     "type": "string"
                 }

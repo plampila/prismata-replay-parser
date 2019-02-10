@@ -93,8 +93,8 @@ export interface ReplayPlayerInfoStrict153 extends ReplayPlayerInfo153 {
 }
 
 export interface ReplayBotInfo153 {
-    name?: string;
-    difficulty?: string;
+    name?: string; // serverVersion >= 62, serverVersion <= 115
+    difficulty?: string; // serverVersion >= 125, serverVersion <= 153
 }
 
 export interface ReplayBotInfoStrict153 extends ReplayBotInfo153 {
@@ -196,14 +196,27 @@ function convertInitInfo(data: ReplayInitInfo153): ReplayInitInfo {
 
 function convertPlayerInfo(data: ReplayPlayerInfo153): [ReplayPlayerInfo, ReplayPlayerInfo] {
     return [{
-        bot: data.playerBots[0] !== null ? (data.playerBots[0].name || data.playerBots[0].difficulty) : undefined,
+        bot: convertBot(data.playerBots[0]),
         name: data.playerNames[0],
         displayName: data.playerNames[0],
     }, {
-        bot: data.playerBots[1] !== null ? (data.playerBots[1].name || data.playerBots[1].difficulty) : undefined,
+        bot: convertBot(data.playerBots[0]),
         name: data.playerNames[1],
         displayName: data.playerNames[1],
     }];
+}
+
+function convertBot(data: ReplayBotInfo153 | null): string {
+    if (data === null) {
+        return '';
+    }
+    if (data.name !== undefined) {
+        return data.name;
+    }
+    if (data.difficulty !== undefined) {
+        return data.difficulty;
+    }
+    return 'unknown';
 }
 
 function convertRatingInfo(data: ReplayRatingInfo153): ReplayRatingInfo {

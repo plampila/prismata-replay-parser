@@ -31,24 +31,6 @@
             ],
             "type": "object"
         },
-        "ReplayCommand": {
-            "additionalProperties": false,
-            "properties": {
-                "_id": {
-                    "type": "number"
-                },
-                "_params": {
-                },
-                "_type": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "_id",
-                "_type"
-            ],
-            "type": "object"
-        },
         "ReplayCommandInfoStrict": {
             "additionalProperties": false,
             "properties": {
@@ -66,7 +48,7 @@
                 },
                 "commandList": {
                     "items": {
-                        "$ref": "#/definitions/ReplayCommand"
+                        "$ref": "#/definitions/ReplayCommandStrict"
                     },
                     "type": "array"
                 },
@@ -102,6 +84,27 @@
                 "moveDurations",
                 "timeBanksRemaining",
                 "timesRemaining"
+            ],
+            "type": "object"
+        },
+        "ReplayCommandStrict": {
+            "additionalProperties": false,
+            "properties": {
+                "_id": {
+                    "type": "number"
+                },
+                "_params": {
+                    "properties": {
+                    },
+                    "type": "object"
+                },
+                "_type": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "_id",
+                "_type"
             ],
             "type": "object"
         },
@@ -542,6 +545,9 @@
                     "type": "array"
                 },
                 "skinInfo": {
+                    "additionalProperties": {
+                    },
+                    "type": "object"
                 }
             },
             "required": [
