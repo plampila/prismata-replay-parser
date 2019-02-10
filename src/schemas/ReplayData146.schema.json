@@ -15,7 +15,7 @@
             ],
             "type": "object"
         },
-        "ReplayBotInfoStrict153": {
+        "ReplayBotInfo153": {
             "additionalProperties": false,
             "properties": {
                 "difficulty": {
@@ -23,14 +23,6 @@
                 },
                 "name": {
                     "type": "string"
-                },
-                "params": {
-                    "properties": {
-                    },
-                    "type": "object"
-                },
-                "version": {
-                    "type": "number"
                 }
             },
             "type": "object"
@@ -53,57 +45,22 @@
             ],
             "type": "object"
         },
-        "ReplayCommandInfoStrict153": {
+        "ReplayCommandInfo": {
             "additionalProperties": false,
             "properties": {
-                "clicksPerTurn": {
-                    "items": {
-                        "type": "number"
-                    },
-                    "type": "array"
-                },
                 "commandList": {
                     "items": {
                         "$ref": "#/definitions/ReplayCommand"
                     },
                     "type": "array"
-                },
-                "commandTimes": {
-                    "items": {
-                        "type": "number"
-                    },
-                    "type": "array"
-                },
-                "moveDurations": {
-                    "items": {
-                        "type": "number"
-                    },
-                    "type": "array"
-                },
-                "timeBanksRemaining": {
-                    "items": {
-                        "type": "number"
-                    },
-                    "type": "array"
-                },
-                "timesRemaining": {
-                    "items": {
-                        "type": "number"
-                    },
-                    "type": "array"
                 }
             },
             "required": [
-                "clicksPerTurn",
-                "commandList",
-                "commandTimes",
-                "moveDurations",
-                "timeBanksRemaining",
-                "timesRemaining"
+                "commandList"
             ],
             "type": "object"
         },
-        "ReplayDeckInfoStrict153": {
+        "ReplayDeckInfo153": {
             "additionalProperties": false,
             "properties": {
                 "blackBase": {
@@ -113,12 +70,6 @@
                     "type": "array"
                 },
                 "blackDominion": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "blackDraft": {
                     "items": {
                         "type": "string"
                     },
@@ -140,11 +91,6 @@
                     "minItems": 1,
                     "type": "array"
                 },
-                "skinInfo": {
-                    "additionalProperties": {
-                    },
-                    "type": "object"
-                },
                 "whiteBase": {
                     "items": {
                         "type": "string"
@@ -156,19 +102,12 @@
                         "type": "string"
                     },
                     "type": "array"
-                },
-                "whiteDraft": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
                 }
             },
             "required": [
                 "blackBase",
                 "blackDominion",
                 "mergedDeck",
-                "skinInfo",
                 "whiteBase",
                 "whiteDominion"
             ],
@@ -199,7 +138,7 @@
             },
             "type": "array"
         },
-        "ReplayInitInfoStrict153": {
+        "ReplayInitInfo153": {
             "additionalProperties": false,
             "properties": {
                 "blackInitCards": {
@@ -207,9 +146,6 @@
                 },
                 "blackInitResources": {
                     "type": "string"
-                },
-                "seed": {
-                    "type": "number"
                 },
                 "whiteInitCards": {
                     "$ref": "#/definitions/ReplayInitCards"
@@ -221,28 +157,21 @@
             "required": [
                 "blackInitCards",
                 "blackInitResources",
-                "seed",
                 "whiteInitCards",
                 "whiteInitResources"
             ],
             "type": "object"
         },
-        "ReplayPlayerInfoStrict153": {
+        "ReplayPlayerInfo153": {
             "additionalProperties": false,
             "properties": {
-                "numPlayers": {
-                    "enum": [
-                        2
-                    ],
-                    "type": "number"
-                },
                 "playerBots": {
                     "additionalItems": {
                         "anyOf": [
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayBotInfoStrict153"
+                                        "$ref": "#/definitions/ReplayBotInfo153"
                                     },
                                     {
                                         "type": "null"
@@ -252,7 +181,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayBotInfoStrict153"
+                                        "$ref": "#/definitions/ReplayBotInfo153"
                                     },
                                     {
                                         "type": "null"
@@ -265,7 +194,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayBotInfoStrict153"
+                                    "$ref": "#/definitions/ReplayBotInfo153"
                                 },
                                 {
                                     "type": "null"
@@ -275,7 +204,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayBotInfoStrict153"
+                                    "$ref": "#/definitions/ReplayBotInfo153"
                                 },
                                 {
                                     "type": "null"
@@ -332,96 +261,26 @@
                 }
             },
             "required": [
-                "numPlayers",
                 "playerBots",
                 "playerIDs",
                 "playerNames"
             ],
             "type": "object"
         },
-        "ReplayPlayerRatingStrict139": {
+        "ReplayPlayerRating146": {
             "additionalProperties": false,
-            "properties": {
-                "dominionELO": {
-                    "type": "number"
-                },
-                "exp": {
-                    "type": "number"
-                },
-                "hStars": {
-                    "type": "number"
-                },
-                "score": {
-                    "additionalProperties": {
-                        "type": "number"
-                    },
-                    "type": "object"
-                },
-                "shalevU": {
-                    "type": "number"
-                },
-                "shalevV": {
-                    "type": "number"
-                },
-                "winLast": {
-                    "type": "boolean"
-                },
-                "winLastLast": {
-                    "type": "boolean"
-                }
-            },
-            "required": [
-                "dominionELO",
-                "hStars",
-                "winLast",
-                "winLastLast"
-            ],
             "type": "object"
         },
-        "ReplayRatingInfoStrict139": {
+        "ReplayRatingInfo146": {
             "additionalProperties": false,
             "properties": {
-                "expChanges": {
-                    "additionalItems": {
-                        "anyOf": [
-                            {
-                                "type": [
-                                    "null",
-                                    "number"
-                                ]
-                            },
-                            {
-                                "type": [
-                                    "null",
-                                    "number"
-                                ]
-                            }
-                        ]
-                    },
-                    "items": [
-                        {
-                            "type": [
-                                "null",
-                                "number"
-                            ]
-                        },
-                        {
-                            "type": [
-                                "null",
-                                "number"
-                            ]
-                        }
-                    ],
-                    "minItems": 2,
-                    "type": "array"
-                },
                 "finalRatings": {
                     "additionalItems": {
                         "anyOf": [
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRatingStrict139"
+                                        "$ref": "#/definitions/ReplayPlayerRating146"
                                     },
                                     {
                                         "type": "null"
@@ -431,7 +290,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRatingStrict139"
+                                        "$ref": "#/definitions/ReplayPlayerRating146"
                                     },
                                     {
                                         "type": "null"
@@ -444,7 +303,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRatingStrict139"
+                                    "$ref": "#/definitions/ReplayPlayerRating146"
                                 },
                                 {
                                     "type": "null"
@@ -454,7 +313,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRatingStrict139"
+                                    "$ref": "#/definitions/ReplayPlayerRating146"
                                 },
                                 {
                                     "type": "null"
@@ -471,7 +330,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRatingStrict139"
+                                        "$ref": "#/definitions/ReplayPlayerRating146"
                                     },
                                     {
                                         "type": "null"
@@ -481,7 +340,7 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/definitions/ReplayPlayerRatingStrict139"
+                                        "$ref": "#/definitions/ReplayPlayerRating146"
                                     },
                                     {
                                         "type": "null"
@@ -494,7 +353,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRatingStrict139"
+                                    "$ref": "#/definitions/ReplayPlayerRating146"
                                 },
                                 {
                                     "type": "null"
@@ -504,7 +363,7 @@
                         {
                             "anyOf": [
                                 {
-                                    "$ref": "#/definitions/ReplayPlayerRatingStrict139"
+                                    "$ref": "#/definitions/ReplayPlayerRating146"
                                 },
                                 {
                                     "type": "null"
@@ -514,9 +373,6 @@
                     ],
                     "minItems": 2,
                     "type": "array"
-                },
-                "ratedGame": {
-                    "type": "boolean"
                 },
                 "ratingChanges": {
                     "additionalItems": {
@@ -655,146 +511,20 @@
                     ],
                     "minItems": 2,
                     "type": "array"
-                },
-                "scoreChanges": {
-                    "additionalItems": {
-                        "anyOf": [
-                            {
-                                "type": [
-                                    "null",
-                                    "number"
-                                ]
-                            },
-                            {
-                                "type": [
-                                    "null",
-                                    "number"
-                                ]
-                            }
-                        ]
-                    },
-                    "items": [
-                        {
-                            "type": [
-                                "null",
-                                "number"
-                            ]
-                        },
-                        {
-                            "type": [
-                                "null",
-                                "number"
-                            ]
-                        }
-                    ],
-                    "minItems": 2,
-                    "type": "array"
-                },
-                "starChanges": {
-                    "additionalItems": {
-                        "anyOf": [
-                            {
-                                "type": [
-                                    "null",
-                                    "number"
-                                ]
-                            },
-                            {
-                                "type": [
-                                    "null",
-                                    "number"
-                                ]
-                            }
-                        ]
-                    },
-                    "items": [
-                        {
-                            "type": [
-                                "null",
-                                "number"
-                            ]
-                        },
-                        {
-                            "type": [
-                                "null",
-                                "number"
-                            ]
-                        }
-                    ],
-                    "minItems": 2,
-                    "type": "array"
                 }
             },
             "required": [
                 "finalRatings",
                 "initialRatings",
-                "ratedGame",
-                "ratingChanges",
-                "starChanges"
+                "ratingChanges"
             ],
             "type": "object"
         },
-        "ReplayTimeInfoStrict153": {
+        "ReplayTimeInfo153": {
             "additionalProperties": false,
             "properties": {
                 "blackInitialTime": {
                     "type": "number"
-                },
-                "correspondence": {
-                    "enum": [
-                        false
-                    ],
-                    "type": "boolean"
-                },
-                "graceCurrentTime": {
-                    "type": "number"
-                },
-                "gracePeriod": {
-                    "type": "number"
-                },
-                "playerCurrentTimeBanks": {
-                    "additionalItems": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "number"
-                            }
-                        ]
-                    },
-                    "items": [
-                        {
-                            "type": "number"
-                        },
-                        {
-                            "type": "number"
-                        }
-                    ],
-                    "minItems": 2,
-                    "type": "array"
-                },
-                "playerCurrentTimes": {
-                    "additionalItems": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "number"
-                            }
-                        ]
-                    },
-                    "items": [
-                        {
-                            "type": "number"
-                        },
-                        {
-                            "type": "number"
-                        }
-                    ],
-                    "minItems": 2,
-                    "type": "array"
                 },
                 "playerIncrements": {
                     "additionalItems": {
@@ -862,85 +592,41 @@
                     "minItems": 2,
                     "type": "array"
                 },
-                "turnNumber": {
-                    "type": "number"
-                },
-                "useClocks": {
-                    "enum": [
-                        true
-                    ],
-                    "type": "boolean"
-                },
                 "whiteInitialTime": {
                     "type": "number"
                 }
             },
             "required": [
                 "blackInitialTime",
-                "correspondence",
-                "graceCurrentTime",
-                "gracePeriod",
-                "playerCurrentTimeBanks",
-                "playerCurrentTimes",
                 "playerIncrements",
                 "playerInitialTimeBanks",
                 "playerTimeBankDilutions",
-                "turnNumber",
-                "useClocks",
                 "whiteInitialTime"
             ],
             "type": "object"
         },
-        "ReplayVersionInfoStrict139": {
+        "ReplayVersionInfo": {
             "additionalProperties": false,
             "properties": {
-                "playerVersions": {
-                    "additionalItems": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ]
-                    },
-                    "items": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ],
-                    "minItems": 2,
-                    "type": "array"
-                },
                 "serverVersion": {
                     "type": "number"
                 }
             },
             "required": [
-                "playerVersions",
                 "serverVersion"
             ],
             "type": "object"
         }
     },
     "properties": {
-        "chatInfo": {
-            "properties": {
-            },
-            "type": "object"
-        },
         "code": {
             "type": "string"
         },
         "commandInfo": {
-            "$ref": "#/definitions/ReplayCommandInfoStrict153"
+            "$ref": "#/definitions/ReplayCommandInfo"
         },
         "deckInfo": {
-            "$ref": "#/definitions/ReplayDeckInfoStrict153"
+            "$ref": "#/definitions/ReplayDeckInfo153"
         },
         "endCondition": {
             "type": "number"
@@ -951,25 +637,14 @@
         "format": {
             "type": "number"
         },
-        "id": {
-            "type": "number"
-        },
         "initInfo": {
-            "$ref": "#/definitions/ReplayInitInfoStrict153"
-        },
-        "logInfo": {
-            "additionalProperties": {
-            },
-            "type": "object"
+            "$ref": "#/definitions/ReplayInitInfo153"
         },
         "playerInfo": {
-            "$ref": "#/definitions/ReplayPlayerInfoStrict153"
+            "$ref": "#/definitions/ReplayPlayerInfo153"
         },
         "ratingInfo": {
-            "$ref": "#/definitions/ReplayRatingInfoStrict139"
-        },
-        "rawHash": {
-            "type": "number"
+            "$ref": "#/definitions/ReplayRatingInfo146"
         },
         "result": {
             "type": "number"
@@ -978,26 +653,22 @@
             "type": "number"
         },
         "timeInfo": {
-            "$ref": "#/definitions/ReplayTimeInfoStrict153"
+            "$ref": "#/definitions/ReplayTimeInfo153"
         },
         "versionInfo": {
-            "$ref": "#/definitions/ReplayVersionInfoStrict139"
+            "$ref": "#/definitions/ReplayVersionInfo"
         }
     },
     "required": [
-        "chatInfo",
         "code",
         "commandInfo",
         "deckInfo",
         "endCondition",
         "endTime",
         "format",
-        "id",
         "initInfo",
-        "logInfo",
         "playerInfo",
         "ratingInfo",
-        "rawHash",
         "result",
         "startTime",
         "timeInfo",

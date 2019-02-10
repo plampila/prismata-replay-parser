@@ -6,7 +6,7 @@ import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './const
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { Deck, GameState, GameStateSnapshot, InitialState, Player, Unit } from './gameState';
 import { ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime } from './replayData';
-import { convert as convert139 } from './replayData139';
+import { convert as convert146 } from './replayData146';
 import { convert as convert153 } from './replayData153';
 import { ReplayDataValidator } from './replayDataValidator';
 import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget } from './util';
@@ -391,10 +391,10 @@ export class ReplayParser extends EventEmitter {
         }
 
         if (parsed.versionInfo.serverVersion <= 146) {
-            if (!validator.isReplayData139(parsed)) {
+            if (!validator.isReplayData146(parsed)) {
                 throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validator.errorText()}`);
             }
-            parsed = convert139(parsed);
+            parsed = convert146(parsed);
         } else if (parsed.versionInfo.serverVersion <= 153) {
             if (!validator.isReplayData153(parsed)) {
                 throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validator.errorText()}`);

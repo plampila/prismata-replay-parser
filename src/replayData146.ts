@@ -17,7 +17,7 @@ export interface ReplayServerVersion {
     [name: string]: any;
 }
 
-export interface ReplayData139 {
+export interface ReplayData146 {
     code: string;
     endCondition: number;
     endTime: number;
@@ -29,12 +29,12 @@ export interface ReplayData139 {
     deckInfo: ReplayDeckInfo153;
     initInfo: ReplayInitInfo153;
     playerInfo: ReplayPlayerInfo153;
-    ratingInfo: ReplayRatingInfo139;
+    ratingInfo: ReplayRatingInfo146;
     timeInfo: ReplayTimeInfo153;
     versionInfo: ReplayVersionInfo;
 }
 
-export interface ReplayDataStrict139 extends ReplayData139 {
+export interface ReplayDataStrict146 extends ReplayData146 {
     rawHash: number;
     id: number;
 
@@ -44,32 +44,32 @@ export interface ReplayDataStrict139 extends ReplayData139 {
     initInfo: ReplayInitInfoStrict153;
     logInfo: { [name: string]: any };
     playerInfo: ReplayPlayerInfoStrict153;
-    ratingInfo: ReplayRatingInfoStrict139;
+    ratingInfo: ReplayRatingInfoStrict146;
     timeInfo: ReplayTimeInfoStrict153;
-    versionInfo: ReplayVersionInfoStrict139;
+    versionInfo: ReplayVersionInfoStrict146;
 }
 
-interface ReplayRatingInfo139 {
-    finalRatings: [ReplayPlayerRating139 | null, ReplayPlayerRating139 | null];
-    initialRatings: [ReplayPlayerRating139 | null, ReplayPlayerRating139 | null];
+interface ReplayRatingInfo146 {
+    finalRatings: [ReplayPlayerRating146 | null, ReplayPlayerRating146 | null];
+    initialRatings: [ReplayPlayerRating146 | null, ReplayPlayerRating146 | null];
     ratingChanges: [[number, number] | number | null, [number, number] | number | null];
 }
 
-interface ReplayRatingInfoStrict139 extends ReplayRatingInfo139 {
+interface ReplayRatingInfoStrict146 extends ReplayRatingInfo146 {
     ratedGame: boolean;
 
     expChanges?: [number | null, number | null]; // serverVersion >= 57
-    finalRatings: [ReplayPlayerRatingStrict139 | null, ReplayPlayerRatingStrict139 | null];
-    initialRatings: [ReplayPlayerRatingStrict139 | null, ReplayPlayerRatingStrict139 | null];
+    finalRatings: [ReplayPlayerRatingStrict146 | null, ReplayPlayerRatingStrict146 | null];
+    initialRatings: [ReplayPlayerRatingStrict146 | null, ReplayPlayerRatingStrict146 | null];
     scoreChanges?: [number | null, number | null]; // serverVersion >= 57
     starChanges: [number | null, number | null];
 }
 
 // tslint:disable-next-line:no-empty-interface
-export interface ReplayPlayerRating139 {
+export interface ReplayPlayerRating146 {
 }
 
-export interface ReplayPlayerRatingStrict139 extends ReplayPlayerRating139 {
+export interface ReplayPlayerRatingStrict146 extends ReplayPlayerRating146 {
     dominionELO: number;
     exp?: number; // optional
     hStars: number;
@@ -80,11 +80,11 @@ export interface ReplayPlayerRatingStrict139 extends ReplayPlayerRating139 {
     winLastLast: boolean;
 }
 
-export interface ReplayVersionInfoStrict139 extends ReplayVersionInfo {
-    playerVersions: [string, string]; // always empty strings if serverVersion >= 139
+export interface ReplayVersionInfoStrict146 extends ReplayVersionInfo {
+    playerVersions: [string, string]; // always empty strings if serverVersion >= 146
 }
 
-export function convert(data: ReplayData139): ReplayData {
+export function convert(data: ReplayData146): ReplayData {
     return convert153({
         code: data.code,
         endCondition: data.endCondition,
@@ -103,7 +103,7 @@ export function convert(data: ReplayData139): ReplayData {
     });
 }
 
-function convertRatingInfo(data: ReplayRatingInfo139): ReplayRatingInfo {
+function convertRatingInfo(data: ReplayRatingInfo146): ReplayRatingInfo {
     return {
         finalRatings: [null, null],
         initialRatings: [null, null],

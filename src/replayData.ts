@@ -137,7 +137,7 @@ export interface ReplayPlayerRatingStrict extends ReplayPlayerRating {
     dominionELO: number;
     exp?: number; // optional
     hStars?: number; // optional
-    peakAdjustedShalevU?: number; // serverVersion >= 147, optional
+    peakAdjustedShalevU?: number; // optional
     ratedGamesPlayed: number;
     score: { [num: string]: number };
     shalevU: number;
