@@ -9,7 +9,7 @@ import sourceMapSupport from 'source-map-support';
 import * as zlib from 'zlib';
 
 import { NotImplementedError, ReplayParser } from '..';
-import { ActionType, EndCondition, GameFormat, ReplayCommandType } from '../constants';
+import { ActionType, EndCondition, GameFormat } from '../constants';
 import { Player } from '../gameState';
 
 function loadSync(file: string): Buffer {
@@ -25,7 +25,7 @@ interface ListGameplayEventsOptions {
     strict?: boolean;
 }
 
-function listGameplayEvents(replayData: any, options: ListGameplayEventsOptions = {}): void {
+function listGameplayEvents(replayData: Buffer, options: ListGameplayEventsOptions = {}): void {
     function log(indentLevel: number, message: string): void {
         console.info(`${Array(indentLevel + 1).join('  ')}${message}`);
     }
@@ -48,7 +48,7 @@ function listGameplayEvents(replayData: any, options: ListGameplayEventsOptions 
     console.info(`Start position P2: ${JSON.stringify(parser.getStartPosition(Player.Second))}`);
 
     if (options.showCommands) {
-        parser.on('command', (command: ReplayCommandType, id?: number) => {
+        parser.on('command', (command, id) => {
             if (id !== undefined) {
                 log(1, `${command} ${id}`);
             } else {
@@ -57,12 +57,12 @@ function listGameplayEvents(replayData: any, options: ListGameplayEventsOptions 
         });
     }
 
-    parser.on('action', (type: ActionType, data) => {
-        if (data && data.target) {
+    parser.on('action', (type, data) => {
+        if (data && data.unit !== undefined && data.target !== undefined) {
             log(options.showCommands ? 2 : 1, `Action: ${ActionType[type]} ${data.unit.name} -> ${data.target.name}`);
-        } else if (data && data.unit) {
+        } else if (data && data.unit !== undefined) {
             log(options.showCommands ? 2 : 1, `${ActionType[type]} ${data.unit.name}`);
-        } else if (data && data.name) {
+        } else if (data && data.name !== undefined) {
             log(options.showCommands ? 2 : 1, `${ActionType[type]} ${data.name}`);
         } else {
             log(options.showCommands ? 2 : 1, ActionType[type]);
@@ -140,6 +140,7 @@ function listGameplayEvents(replayData: any, options: ListGameplayEventsOptions 
     }
 }
 
+// tslint:disable:no-unsafe-any
 async function main(): Promise<void> {
     sourceMapSupport.install();
     const argv = minimist(process.argv.slice(2), { boolean: ['test', 'v', 'c', 'u', 'strict'] });
@@ -151,7 +152,7 @@ async function main(): Promise<void> {
     let errorCount = 0;
     let notImplementedCount = 0;
     for (const filename of argv._) {
-        let data;
+        let data: Buffer;
         try {
             data = loadSync(filename);
         } catch (e) {

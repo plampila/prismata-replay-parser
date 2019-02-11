@@ -5,7 +5,7 @@ import * as timsort from 'timsort';
 import { convertBlueprintFromReplay, renameBlueprintFields } from './blueprint';
 import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
-import { Deck, GameState, GameStateSnapshot, InitialState, Player } from './gameState';
+import { GameState, GameStateSnapshot, InitialState, Player, Resources } from './gameState';
 import { ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime } from './replayData';
 import { convert as convert146 } from './replayData146';
 import { convert as convert153 } from './replayData153';
@@ -138,7 +138,10 @@ interface Command {
     command: ReplayCommandType;
     id?: number;
     player?: number;
-    params?: any;
+}
+
+function isReplayCommandType(value: string): value is ReplayCommandType {
+    return Object.values(ReplayCommandType).includes(value);
 }
 
 function parseCommand(data: ReplayCommand): Command {
@@ -150,8 +153,8 @@ function parseCommand(data: ReplayCommand): Command {
     }
 
     const id = data._id;
-    const command: ReplayCommandType | undefined = Object.values(ReplayCommandType).find(x => data._type === x);
-    if (command === undefined) {
+    const command = data._type;
+    if (!isReplayCommandType(command)) {
         throw new DataError('Unknown command type.', data);
     }
 
@@ -312,19 +315,36 @@ interface ClickAction {
     unit?: Unit;
 }
 
+interface DeckInfo {
+    baseSet: string[];
+    randomSet: string[];
+    customSupplies?: { [unitName: string]: number };
+}
+
+interface PlayerStartPosition {
+    units: { [unitName: string]: number };
+    resources?: Resources;
+}
+
 interface Result {
     endCondition: EndCondition;
     winner?: Player;
 }
 
-export declare interface ReplayParser {
-    on(event: 'undoSnapshot' | 'initGame' | 'initGameDone', listener: () => void): this;
-    on(event: 'command' | 'commandDone', listener: (action: ReplayCommandType, id?: number) => void): this;
-    on(event: 'action' | 'actionDone', listener: (action: ActionType, data?: any) => void): this;
+interface ActionData {
+    name?: string;
+    unit?: Unit;
+    target?: Unit;
 }
 
 interface ReplayParserOptions {
     strict?: boolean;
+}
+
+export declare interface ReplayParser {
+    on(event: 'undoSnapshot' | 'initGame' | 'initGameDone', listener: () => void): this;
+    on(event: 'command' | 'commandDone', listener: (action: ReplayCommandType, id?: number) => void): this;
+    on(event: 'action' | 'actionDone', listener: (action: ActionType, data: ActionData) => void): this;
 }
 
 export class ReplayParser extends EventEmitter {
@@ -566,7 +586,7 @@ export class ReplayParser extends EventEmitter {
         return { action: ActionType.UseAbility, unit };
     }
 
-    private runAction(action: ActionType, data?: any): void {
+    private runAction(action: ActionType, data: ActionData = {}): void {
         this.emit('action', action, data);
 
         switch (action) {
@@ -775,7 +795,7 @@ export class ReplayParser extends EventEmitter {
                     throw new DataError('Unknown target action.', targetAction);
                 }
             });
-            timsort.sort<any>(targets, (a, b) => b.toughness - a.toughness);
+            timsort.sort(targets, (a, b) => b.toughness - a.toughness);
         } else {
             targets = [clickedUnit];
         }
@@ -1180,11 +1200,10 @@ export class ReplayParser extends EventEmitter {
     }
 
     public getGameFormat(): GameFormat {
-        const gameFormat: GameFormat | undefined = Object.values(GameFormat).find(x => this.data.format === x);
-        if (gameFormat === undefined) {
+        if (!(this.data.format in GameFormat)) {
             throw new DataError(`Unknown game format: ${this.data.format}`);
         }
-        return gameFormat;
+        return this.data.format;
     }
 
     public getPlayerInfo(player: Player): PlayerInfo {
@@ -1212,21 +1231,21 @@ export class ReplayParser extends EventEmitter {
         return this.data.timeInfo.playerTime[player];
     }
 
-    public getDeck(player: Player): Deck {
+    public getDeck(player: Player): DeckInfo {
         const info = parseDeckAndInitInfo(this.data);
 
-        const deck: any = {
-            baseSet: info.baseSets[player].map((x: any) => Array.isArray(x) ? x[0] : x),
-            randomSet: info.randomSets[player].map((x: any) => Array.isArray(x) ? x[0] : x),
+        const deck: DeckInfo = {
+            baseSet: info.baseSets[player].map(x => Array.isArray(x) ? x[0] : x),
+            randomSet: info.randomSets[player].map(x => Array.isArray(x) ? x[0] : x),
         };
 
-        const customSupplies: any = {};
-        info.baseSets[player].forEach((x: any) => {
+        const customSupplies: { [unitName: string]: number; } = {};
+        info.baseSets[player].forEach(x => {
             if (Array.isArray(x)) {
                 customSupplies[x[0]] = x[1];
             }
         });
-        info.randomSets[player].forEach((x: any) => {
+        info.randomSets[player].forEach(x => {
             if (Array.isArray(x)) {
                 customSupplies[x[0]] = x[1];
             }
@@ -1237,14 +1256,14 @@ export class ReplayParser extends EventEmitter {
         return deck;
     }
 
-    public getStartPosition(player: Player): any {
+    public getStartPosition(player: Player): PlayerStartPosition {
         const info = parseDeckAndInitInfo(this.data);
 
-        const startPosition: any = {
+        const startPosition: PlayerStartPosition = {
             units: {},
         };
 
-        info.initCards[player].forEach((rule: any) => {
+        info.initCards[player].forEach(rule => {
             startPosition.units[rule[1]] = rule[0];
         });
 
@@ -1256,9 +1275,6 @@ export class ReplayParser extends EventEmitter {
     }
 
     public getResult(): Result {
-        if (this.data.result === undefined || this.data.result === null) {
-            throw new DataError('Missing result.');
-        }
         if (this.getServerVersion() <= 158) {
             if (this.data.result === 3) {
                 throw new NotImplementedError('Old version: Result 3');
@@ -1272,24 +1288,22 @@ export class ReplayParser extends EventEmitter {
         }
         const winner = this.data.result === 2 ? undefined : this.data.result;
 
-        const endCondition: EndCondition | undefined =
-            Object.values(EndCondition).find(x => this.data.endCondition === x);
-        if (endCondition === undefined) {
+        if (!(this.data.endCondition in EndCondition)) {
             throw new DataError(`Unknown end condition: ${this.data.endCondition}`);
         }
 
-        if (DRAW_END_CONDITIONS.includes(endCondition)) {
+        if (DRAW_END_CONDITIONS.includes(this.data.endCondition)) {
             if (winner !== undefined) {
-                throw new DataError('Expected draw with end condition.', endCondition);
+                throw new DataError('Expected draw with end condition.', this.data.endCondition);
             }
         } else {
             if (winner === undefined) {
-                throw new DataError('Expected non-draw with end condition.', endCondition);
+                throw new DataError('Expected non-draw with end condition.', this.data.endCondition);
             }
         }
 
         return {
-            endCondition,
+            endCondition: this.data.endCondition,
             winner,
         };
     }

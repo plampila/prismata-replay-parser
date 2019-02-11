@@ -2,6 +2,7 @@ import { DataError } from './customErrors';
 import { Resources } from './gameState';
 import { Unit } from './unit';
 
+// tslint:disable:no-unsafe-any
 export function deepClone<T>(o: any): T {
     if (o === undefined || o === null || typeof(o) !== 'object') {
         return o;
@@ -16,6 +17,7 @@ export function deepClone<T>(o: any): T {
     });
     return temp;
 }
+// tslint:enable:no-unsafe-any
 
 export function parseResources(resources: string | number): Resources {
     function count(str: string, type: string): number {

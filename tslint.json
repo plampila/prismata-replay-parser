@@ -34,6 +34,7 @@
         "no-unbound-method": true,
         "no-unnecessary-class": true,
         "no-unnecessary-type-assertion": true,
+        "no-unsafe-any": true,
         "no-void-expression": true,
         "number-literal-format": true,
         "object-literal-sort-keys": false,

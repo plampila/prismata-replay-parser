@@ -115,7 +115,7 @@ export class Unit {
         return !this.destroyed && this.disruption >= this.toughness;
     }
 
-    private validSnipeTarget(condition: any): boolean { // TODO: Condition
+    private validSnipeTarget(condition: Condition): boolean {
         if (this.delay && this.purchased) {
             return false;
         }
@@ -123,33 +123,31 @@ export class Unit {
             return false;
         }
 
-        return !Object.keys(condition).some(key => {
-            switch (key) {
-            case 'isABC':
-                if (!['Animus', 'Blastforge', 'Conduit'].includes(this.name)) {
-                    return true;
-                }
+        if (condition.healthAtMost !== undefined) {
+            if (this.toughness - (this.fragile ? this.assignedAttack : 0) > condition.healthAtMost) {
                 return false;
-            case 'healthAtMost':
-                if (this.toughness - (this.fragile ? this.assignedAttack : 0) >
-                        condition.healthAtMost) {
-                    return true;
-                }
-                return false;
-            case 'nameIn':
-                if (!condition.nameIn.includes(this.name)) {
-                    return true;
-                }
-                return false;
-            case 'isEngineerTempHack':
-                if (this.name !== 'Engineer') {
-                    return true;
-                }
-                return false;
-            default:
-                throw new DataError('Unknown condition.', key);
             }
-        });
+        }
+
+        if (condition.isABC === 1) {
+            if (!['Animus', 'Blastforge', 'Conduit'].includes(this.name)) {
+                return false;
+            }
+        }
+
+        if (condition.isEngineerTempHack === 1) {
+            if (this.name !== 'Engineer') {
+                return false;
+            }
+        }
+
+        if (condition.nameIn !== undefined) {
+            if (!condition.nameIn.includes(this.name)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private validChillTarget(): boolean {
