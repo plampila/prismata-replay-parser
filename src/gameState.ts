@@ -5,14 +5,13 @@ import * as timsort from 'timsort';
 import { Blueprint, SacrificeRule, Script } from './blueprint';
 import { ActionType } from './constants';
 import { DataError, InvalidStateError } from './customErrors';
-import { blocking, deepClone, frozen, parseResources, purchasedThisTurn, validTarget } from './util';
+import { Unit } from './unit';
+import { deepClone, parseResources } from './util';
 
 export enum Player {
     First = 0,
     Second = 1,
 }
-
-export type Unit = any;
 
 export type Deck = Blueprint[];
 
@@ -28,14 +27,6 @@ export interface Resources {
     energy: number;
     attack: number;
 }
-
-const DEFAULT_PROPERTIES: {
-    [property: string]: boolean | number;
-} = {
-    assignedAttack: 0,
-    disruption: 0,
-    sacrificed: false,
-};
 
 type InitialUnitList = Array<[number, string]>;
 type PurchasableUnitList = Array<string | [string, number]>;
@@ -74,7 +65,7 @@ export class GameState extends EventEmitter {
     public inDefensePhase: boolean = false;
     private supplies: [Supplies, Supplies] = [{}, {}];
     private resources: [Resources, Resources] = [parseResources('0'), parseResources('0')];
-    public units: Unit[] = [];
+    public units: Array<Unit | undefined> = [];
 
     constructor() {
         super();
@@ -90,21 +81,25 @@ export class GameState extends EventEmitter {
     }
 
     public slate(player?: Player): Unit[] {
-        return this.units.filter(x => !x.destroyed && (player === undefined || x.player === player));
+        function isUnit(x: Unit | undefined): x is Unit {
+            return x !== undefined;
+        }
+        return this.units.filter(isUnit)
+            .filter(x => !x.destroyed && (player === undefined || x.player === player));
     }
 
     public blockers(player: Player = this.activePlayer): Unit[] {
-        return this.slate(player).filter(x => blocking(x) && !frozen(x));
+        return this.slate(player).filter(x => x.blocking() && !x.frozen());
     }
 
     public absorber(): Unit | undefined {
         return this.slate(this.activePlayer)
-            .find(x => blocking(x) && x.assignedAttack > 0 && x.assignedAttack < x.toughness);
+            .find(x => x.blocking() && x.assignedAttack > 0 && x.assignedAttack < x.toughness);
     }
 
     public breachAbsorber(): Unit | undefined {
-        const candidates = this.slate(this.villain()).filter(x => !blocking(x) &&
-            x.assignedAttack > 0 && x.assignedAttack < x.toughness);
+        const candidates = this.slate(this.villain())
+            .filter(x => !x.blocking() && x.assignedAttack > 0 && x.assignedAttack < x.toughness);
         if (candidates.length === 2 && candidates[0].sacrificed) {
             return candidates[1];
         }
@@ -122,23 +117,37 @@ export class GameState extends EventEmitter {
         }
 
         const totalDefense = this.blockers(this.villain())
-            .filter(x => !x.assignedAttack)
-            .reduce((t, x) => t + x.toughness, 0); // tslint:disable-line:restrict-plus-operands
+            .filter(x => x.assignedAttack === 0)
+            .reduce((t, x) => t + x.toughness, 0);
         return this.attack() >= Math.max(totalDefense, 1);
     }
 
     public breaching(): boolean {
         return this.slate(this.villain())
-            .some(x => !x.sacrificed && !blocking(x) && x.assignedAttack);
+            .some(x => !x.sacrificed && !x.blocking() && x.assignedAttack > 0);
     }
 
     public canOverKill(): boolean {
-        return !this.slate(this.villain()).some(x => !x.sacrificed &&
-            x.assignedAttack < x.toughness && (!x.delay || !x.purchased));
+        return !this.slate(this.villain())
+            .some(x => !x.sacrificed && x.assignedAttack < x.toughness && (!x.delay || !x.purchased));
     }
 
-    private targetedUnit(unit: Unit): Unit {
-        return this.slate().find(x => x.targetedBy && x.targetedBy.includes(this.unitId(unit)));
+    private targetedUnit(unit: Unit): Unit | undefined {
+        const id = this.unitId(unit);
+        if (id === undefined) {
+            throw new InvalidStateError('Unit ID not found.', unit);
+        }
+        return this.slate().find(x => x.targetedBy.includes(id));
+    }
+
+    public targetingUnits(unit: Unit): Unit[] {
+        return unit.targetedBy.map(id => {
+            const targetter = this.units[id];
+            if (targetter === undefined) {
+                throw new InvalidStateError('Targeted by removed unit.', unit);
+            }
+            return targetter;
+        });
     }
 
     private unitId(unit: Unit): number | undefined {
@@ -161,11 +170,8 @@ export class GameState extends EventEmitter {
         if (!unit) {
             throw new InvalidStateError('No unit given.');
         }
-        if (this.unitId(unit) === null) {
+        if (this.unitId(unit) === undefined) {
             throw new InvalidStateError('Unit with no ID.', unit);
-        }
-        if (unit.player === undefined) {
-            throw new InvalidStateError('No player defined.', unit);
         }
         if (unit.destroyed) {
             throw new InvalidStateError('Destroyed unit.', unit);
@@ -195,22 +201,13 @@ export class GameState extends EventEmitter {
             throw new NotImplementedError('Robo Santa');
         }*/
 
-        const unit = Object.create(blueprint);
-        unit.player = player;
-        const delay = buildTime !== undefined ? buildTime : unit.buildTime;
-        if (delay !== 0) {
-            unit.building = true;
-            unit.delay = delay;
-        }
-        if (lifespan) {
-            unit.lifespan = lifespan;
-        }
+        const unit = new Unit(blueprint, player, { buildTime, lifespan });
         this.units.push(unit);
         return unit;
     }
 
     private destroyUnit(unit: Unit, reason: string): void {
-        if (this.unitId(unit) === null) {
+        if (this.unitId(unit) === undefined) {
             throw new InvalidStateError('Tried to destroy non-added unit.', unit);
         }
         if (unit.destroyed) {
@@ -262,14 +259,12 @@ export class GameState extends EventEmitter {
 
         const unit = this.breachAbsorber();
         if (unit) {
-            if (unit.targetedBy) {
-                unit.targetedBy.map((id: number) => this.units[id]).forEach((x: Unit) => {
-                    if (x.targetAction === 'snipe') {
-                        this.emit('autoAction', ActionType.CancelUseAbility, x);
-                        this.cancelUseAbility(x);
-                    }
-                });
-            }
+            this.targetingUnits(unit).forEach(x => {
+                if (x.targetAction === 'snipe') {
+                    this.emit('autoAction', ActionType.CancelUseAbility, x);
+                    this.cancelUseAbility(x);
+                }
+            });
             if (unit.sacrificed) {
                 throw new InvalidStateError('Partially damaged unit sacrificed.', unit);
             }
@@ -355,7 +350,7 @@ export class GameState extends EventEmitter {
                 if (!found) {
                     throw new InvalidStateError('No unit found to cancel ability sacrifice.', rules);
                 }
-                delete found.sacrificed;
+                found.sacrificed = false;
             }
         });
     }
@@ -413,7 +408,7 @@ export class GameState extends EventEmitter {
         }
 
         if (script.delay !== undefined) {
-            delete unit.delay;
+            unit.delay = undefined;
         }
 
         if (script.receive !== undefined) {
@@ -424,13 +419,13 @@ export class GameState extends EventEmitter {
             if (!unit.sacrificed) {
                 throw new InvalidStateError('Not sacrificed.', unit);
             }
-            delete unit.sacrificed;
+            unit.sacrificed = false;
         }
     }
 
     private runStartTurn(): void {
         this.slate(this.activePlayer).forEach(unit => {
-            if (unit.assignedAttack) {
+            if (unit.assignedAttack > 0) {
                 if (unit.assignedAttack >= unit.toughness) {
                     this.destroyUnit(unit, 'defense');
                     return;
@@ -438,12 +433,11 @@ export class GameState extends EventEmitter {
                 if (unit.fragile) {
                     unit.toughness -= unit.assignedAttack;
                 }
-                delete unit.assignedAttack;
+                unit.assignedAttack = 0;
             }
             unit.toughness += unit.HPGained;
-            unit.toughness = Math.min(unit.toughness,
-                unit.HPMax ? unit.HPMax : Object.getPrototypeOf(unit).toughness);
-            if (!unit.delay && unit.lifespan > 0) {
+            unit.toughness = Math.min(unit.toughness, unit.HPMax);
+            if (!unit.delay && unit.lifespan !== undefined && unit.lifespan > 0) {
                 unit.lifespan--;
                 if (unit.lifespan === 0) {
                     this.destroyUnit(unit, 'lifespan');
@@ -451,17 +445,17 @@ export class GameState extends EventEmitter {
                 }
             }
 
-            delete unit.disruption;
-            delete unit.abilityUsed;
+            unit.disruption = 0;
+            unit.abilityUsed = false;
             if (unit.delay) {
                 unit.delay--;
                 if (unit.delay <= 0) {
-                    delete unit.delay;
-                    delete unit.building;
-                    delete unit.purchased;
+                    unit.delay = undefined;
+                    unit.building = false;
+                    unit.purchased = false;
                 }
             } else if (unit.purchased) {
-                delete unit.purchased;
+                unit.purchased = false;
             }
         });
 
@@ -496,9 +490,9 @@ export class GameState extends EventEmitter {
                 this.destroyUnit(unit, 'sacrificed');
             }
 
-            delete unit.sacrificed;
-            delete unit.constructedBy;
-            delete unit.targetedBy;
+            unit.sacrificed = false;
+            unit.constructedBy = undefined;
+            unit.targetedBy.length = 0;
         });
 
         if (this.defensesOverran() && this.attack() > 0) {
@@ -533,10 +527,10 @@ export class GameState extends EventEmitter {
         if (unit.assignedAttack) {
             throw new InvalidStateError('Already assigned.', unit);
         }
-        if (!blocking(unit)) {
+        if (!unit.blocking()) {
             throw new InvalidStateError('Not blocking.', unit);
         }
-        if (frozen(unit)) {
+        if (unit.frozen()) {
             throw new InvalidStateError('Frozen unit.', unit);
         }
 
@@ -570,7 +564,7 @@ export class GameState extends EventEmitter {
         }
 
         this.addAttack(unit.assignedAttack, this.villain());
-        delete unit.assignedAttack;
+        unit.assignedAttack = 0;
     }
 
     public endDefense(): void {
@@ -645,7 +639,7 @@ export class GameState extends EventEmitter {
     public canCancelPurchase(unit: Unit): boolean {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit);
-        if (!purchasedThisTurn(unit)) {
+        if (!unit.purchasedThisTurn()) {
             throw new InvalidStateError('Not purchased this turn.', unit);
         }
 
@@ -658,6 +652,9 @@ export class GameState extends EventEmitter {
         }
 
         this.supplies[unit.player][unit.name]++;
+        if (unit.buyCost === undefined) {
+            throw new DataError('Unit buyCost not set.', unit);
+        }
         this.addResources(unit.buyCost);
         if (unit.buySac) {
             this.cancelSacrificeUnits(unit.buySac);
@@ -692,7 +689,7 @@ export class GameState extends EventEmitter {
         }
         if (unit.abilityNetherfy) {
             if (!this.slate(this.villain()).some(x => x.name === 'Drone' &&
-                !x.sacrificed && (!x.delay || !x.purchased) && !blocking(x))) {
+                !x.sacrificed && (!x.delay || !x.purchased) && !x.blocking())) {
                 return false;
             }
         }
@@ -702,19 +699,22 @@ export class GameState extends EventEmitter {
             }
             return true;
         }
+        if (target === undefined) {
+            throw new InvalidStateError('No target given, but target action.', unit);
+        }
 
         this.requireEnemyUnit(target, true);
-        if (!validTarget(target, unit.targetAction, unit.condition)) {
+        if (!target.validTarget(unit.targetAction, unit.condition)) {
             throw new InvalidStateError('Invalid target.', target);
         }
 
         switch (unit.targetAction) {
         case 'disrupt':
-            if (unit.targetAmount <= 0) {
+            if (unit.targetAmount === undefined || unit.targetAmount <= 0) {
                 throw new DataError('Invalid target amount.', unit);
             }
 
-            return !frozen(target);
+            return !target.frozen();
         case 'snipe':
             return !target.sacrificed;
         default:
@@ -742,7 +742,7 @@ export class GameState extends EventEmitter {
 
         if (unit.abilityNetherfy) {
             const candidates = this.slate(this.villain()).filter(x => x.name === 'Drone' &&
-                !x.sacrificed && (!x.delay || !x.purchased) && !blocking(x));
+                !x.sacrificed && (!x.delay || !x.purchased) && !x.blocking());
             assert(candidates.length > 0);
             // Already built drones are sniped before building ones
             timsort.sort(candidates, (a, b) => (b.delay || 0) - (a.delay || 0));
@@ -753,7 +753,7 @@ export class GameState extends EventEmitter {
             this.runScript(unit, unit.abilityScript);
         }
 
-        if (unit.charge > 0) {
+        if (unit.charge !== undefined) {
             unit.charge--;
         }
 
@@ -763,18 +763,25 @@ export class GameState extends EventEmitter {
             }
             return;
         }
-
-        if (!target.targetedBy) {
-            target.targetedBy = [];
+        if (target === undefined) {
+            throw new InvalidStateError('No target given, but target action.', unit);
         }
-        target.targetedBy.push(this.unitId(unit));
+
+        const id = this.unitId(unit);
+        if (id === undefined) {
+            throw new InvalidStateError('Unit ID not found.', unit);
+        }
+        target.targetedBy.push(id);
 
         switch (unit.targetAction) {
         case 'disrupt':
-            if (frozen(target)) {
+            if (target.frozen()) {
                 throw new InvalidStateError('Target already frozen.', target);
             }
 
+            if (unit.targetAmount === undefined) {
+                throw new DataError('Invalid target amount.', unit);
+            }
             target.disruption += unit.targetAmount; // tslint:disable-line:restrict-plus-operands
             break;
         case 'snipe':
@@ -813,13 +820,13 @@ export class GameState extends EventEmitter {
         }
 
         this.requireEnemyUnit(target, true);
-        if (!validTarget(target, unit.targetAction, unit.condition)) {
+        if (!target.validTarget(unit.targetAction, unit.condition)) {
             throw new InvalidStateError('Invalid target.', target);
         }
 
         switch (unit.targetAction) {
         case 'disrupt':
-            if (unit.targetAmount <= 0) {
+            if (unit.targetAmount === undefined || unit.targetAmount <= 0) {
                 throw new DataError('Invalid target amount.', unit);
             }
             if (target.disruption < unit.targetAmount) {
@@ -848,8 +855,10 @@ export class GameState extends EventEmitter {
         }
         if (unit.abilityNetherfy) {
             const found = this.slate(this.villain()).find(x => x.name === 'Drone' && x.sacrificed);
-            assert(found, 'No sniped drone found.');
-            delete found.sacrificed;
+            if (found === undefined) {
+                throw new InvalidStateError('No sniped drone found.');
+            }
+            found.sacrificed = false;
         }
         if (unit.abilityCost) {
             this.addResources(unit.abilityCost);
@@ -861,27 +870,31 @@ export class GameState extends EventEmitter {
         if (unit.charge !== undefined) {
             unit.charge++;
         }
-        delete unit.abilityUsed;
+        unit.abilityUsed = false;
 
         if (!unit.targetAction) {
             return;
         }
 
         const target = this.targetedUnit(unit);
-        target.targetedBy.splice(target.targetedBy.indexOf(this.unitId(unit)), 1);
-        if (target.targetedBy.length === 0) {
-            delete target.targetedBy;
+        if (target === undefined) {
+            throw new InvalidStateError('Targeted unit not found.', unit);
         }
+        const id = this.unitId(unit);
+        if (id === undefined) {
+            throw new InvalidStateError('Unit ID not found.', unit);
+        }
+        target.targetedBy.splice(target.targetedBy.indexOf(id), 1);
 
         switch (unit.targetAction) {
         case 'disrupt':
-            target.disruption -= unit.targetAmount;
-            if (target.disruption === 0) {
-                delete target.disruption;
+            if (unit.targetAmount === undefined) {
+                throw new DataError('Invalid target amount.', unit);
             }
+            target.disruption -= unit.targetAmount;
             break;
         case 'snipe':
-            delete target.sacrificed;
+            target.sacrificed = false;
             break;
         default:
             throw new DataError('Unknown target action.', unit.targetAction);
@@ -914,7 +927,7 @@ export class GameState extends EventEmitter {
             .filter(x => !x.defensesBypassed)
             .forEach(x => {
                 this.addAttack(x.assignedAttack);
-                delete x.assignedAttack;
+                x.assignedAttack = 0;
             });
     }
 
@@ -948,7 +961,7 @@ export class GameState extends EventEmitter {
     public canCancelAssignAttack(unit: Unit): boolean {
         this.requireActionPhase();
         this.requireEnemyUnit(unit, true);
-        if (this.defensesOverran() && blocking(unit) && !frozen(unit)) {
+        if (this.defensesOverran() && unit.blocking() && !unit.frozen()) {
             throw new InvalidStateError('Can not cancel attack on blocker after overran.', unit);
         }
 
@@ -960,21 +973,19 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Unavailable action.', unit);
         }
 
-        if (unit.targetedBy) {
-            unit.targetedBy.map((id: number) => this.units[id]).forEach((x: Unit) => {
-                if (x.targetAction === 'snipe') {
-                    this.emit('autoAction', ActionType.CancelUseAbility, x);
-                    this.cancelUseAbility(x);
-                }
-            });
-        }
+        this.targetingUnits(unit).forEach(x => {
+            if (x.targetAction === 'snipe') {
+                this.emit('autoAction', ActionType.CancelUseAbility, x);
+                this.cancelUseAbility(x);
+            }
+        });
         if (unit.sacrificed) {
             throw new InvalidStateError('Sacrificed unit', unit);
         }
 
         const amount = unit.assignedAttack;
-        delete unit.assignedAttack;
-        delete unit.defensesBypassed;
+        unit.assignedAttack = 0;
+        unit.defensesBypassed = false;
         this.addAttack(amount);
     }
 
@@ -991,7 +1002,7 @@ export class GameState extends EventEmitter {
         }
 
         this.resources = [parseResources(info.initResources[0]), parseResources(info.initResources[1])];
-        this.deck = info.deck.map((x: any) => Object.assign(Object.create(DEFAULT_PROPERTIES), x));
+        this.deck = info.deck;
         this.supplies = [{}, {}];
         this.initPlayer(Player.First, info.initCards[0], info.baseSets[0], info.randomSets[0], info.infiniteSupplies);
         this.initPlayer(Player.Second, info.initCards[1], info.baseSets[1], info.randomSets[1], info.infiniteSupplies);

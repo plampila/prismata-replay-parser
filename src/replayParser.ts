@@ -5,12 +5,13 @@ import * as timsort from 'timsort';
 import { convertBlueprintFromReplay, renameBlueprintFields } from './blueprint';
 import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
-import { Deck, GameState, GameStateSnapshot, InitialState, Player, Unit } from './gameState';
+import { Deck, GameState, GameStateSnapshot, InitialState, Player } from './gameState';
 import { ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime } from './replayData';
 import { convert as convert146 } from './replayData146';
 import { convert as convert153 } from './replayData153';
 import { ReplayDataValidator } from './replayDataValidator';
-import { blocking, frozen, parseResources, purchasedThisTurn, targetingIsUseful, validTarget } from './util';
+import { Unit } from './unit';
+import { parseResources, targetingIsUseful } from './util';
 
 const DRAW_END_CONDITIONS = [EndCondition.Repetition, EndCondition.DoubleDisconnect, EndCondition.Draw];
 
@@ -19,16 +20,6 @@ const REPLAY_COMMANDS_WITH_IDS = [
     ReplayCommandType.ShiftClickUnit,
     ReplayCommandType.ClickBlueprint,
     ReplayCommandType.ShiftClickBlueprint,
-];
-
-const TESTABLE_ACTIONS = [
-    ActionType.AssignDefense,
-    ActionType.CancelAssignDefense,
-    ActionType.CancelPurchase,
-    ActionType.AssignAttack,
-    ActionType.CancelAssignAttack,
-    ActionType.UseAbility,
-    ActionType.CancelUseAbility,
 ];
 
 let replayDataValidator: ReplayDataValidator | undefined;
@@ -63,8 +54,8 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
         timsort.sort(units, (a: Unit, b: Unit) => {
             for (const rule of rules) {
                 const key = rule.slice(1);
-                let aVal;
-                let bVal;
+                let aVal: number;
+                let bVal: number;
                 if (key === 'delay-1') {
                     aVal = a.delay ? a.delay - 1 : 0;
                     bVal = b.delay ? b.delay - 1 : 0;
@@ -72,12 +63,24 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
                     aVal = a.lifespan ? a.lifespan + (a.delay || 0) : 0; // tslint:disable-line:restrict-plus-operands
                     bVal = b.lifespan ? b.lifespan + (b.delay || 0) : 0; // tslint:disable-line:restrict-plus-operands
                 } else {
-                    if (key === 'lifespan') {
+                    switch (key) {
+                    case 'abilityUsed':
+                        aVal = a[key] === true ? 1 : 0;
+                        bVal = b[key] === true ? 1 : 0;
+                        break;
+                    case 'lifespan':
                         aVal = a[key] || Infinity;
                         bVal = b[key] || Infinity;
-                    } else {
+                        break;
+                    case 'assignedAttack':
+                    case 'delay':
+                    case 'charge':
+                    case 'toughness':
                         aVal = a[key] || 0;
                         bVal = b[key] || 0;
+                        break;
+                    default:
+                        throw new InvalidStateError('Unknown sort order.', key);
                     }
                 }
                 if (aVal === bVal) {
@@ -115,7 +118,7 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
         if (units[0].defaultBlocking) {
             // Sort blockers and non-blockers separately
             sortUnits(['<delay', '<abilityUsed', '<lifespan', '>toughness', '>charge']);
-            const offset = units.findIndex(x => x.abilityUsed || x.delay);
+            const offset = units.findIndex(x => x.abilityUsed || x.delay !== undefined);
             sortUnits(['<assignedAttack', '<delay-1', '>lifespan+delay', '<toughness', '>charge'],
                       offset < 0 ? undefined : offset);
         } else {
@@ -429,7 +432,7 @@ export class ReplayParser extends EventEmitter {
 
         if (this.state.inDefensePhase) {
             assert(this.targetingUnits.length === 0, 'Targeting in defense phase.');
-            if (unit.player !== this.state.activePlayer || !blocking(unit) || frozen(unit)) {
+            if (unit.player !== this.state.activePlayer || !unit.blocking() || unit.frozen()) {
                 return {};
             }
             if (unit.assignedAttack) {
@@ -447,43 +450,46 @@ export class ReplayParser extends EventEmitter {
             return { action: ActionType.AssignDefense, unit };
         }
 
-        if (unit.constructedBy && purchasedThisTurn(this.state.units[unit.constructedBy])) {
-            return {
-                action: ActionType.CancelPurchase,
-                unit: this.state.units[unit.constructedBy],
-            };
+        if (unit.constructedBy !== undefined) {
+            const constructedByUnit = this.state.units[unit.constructedBy];
+            if (constructedByUnit === undefined) {
+                throw new InvalidStateError('Constructed by removed unit.', unit);
+            }
+            if (constructedByUnit.purchasedThisTurn()) {
+                return {
+                    action: ActionType.CancelPurchase,
+                    unit: this.state.units[unit.constructedBy],
+                };
+            }
         }
 
         if (unit.player !== this.state.activePlayer) {
-            if (unit.targetedBy) {
-                const sources = unit.targetedBy.map((x: number) => this.state.units[x]);
-                for (const source of sources) {
-                    switch (source.targetAction) {
-                    case 'disrupt':
-                        if (!unit.sacrificed) {
-                            if (!this.inDamagePhase) {
-                                return {
-                                    action: ActionType.CancelUseAbility,
-                                    unit: source,
-                                };
-                            }
-                            if (!this.state.breaching() && !unit.fragile && !unit.assignedAttack &&
-                                    this.state.attack() < unit.toughness) {
-                                return {
-                                    action: ActionType.CancelUseAbility,
-                                    unit: source,
-                                };
-                            }
+            for (const source of this.state.targetingUnits(unit)) {
+                switch (source.targetAction) {
+                case 'disrupt':
+                    if (!unit.sacrificed) {
+                        if (!this.inDamagePhase) {
+                            return {
+                                action: ActionType.CancelUseAbility,
+                                unit: source,
+                            };
                         }
-                        break;
-                    case 'snipe':
-                        if (unit.assignedAttack) {
-                            return { action: ActionType.CancelAssignAttack, unit };
+                        if (!this.state.breaching() && !unit.fragile && !unit.assignedAttack &&
+                                this.state.attack() < unit.toughness) {
+                            return {
+                                action: ActionType.CancelUseAbility,
+                                unit: source,
+                            };
                         }
-                        return { action: ActionType.CancelUseAbility, unit: source };
-                    default:
-                        throw new DataError('Unknown targetAction.', source.targetAction);
                     }
+                    break;
+                case 'snipe':
+                    if (unit.assignedAttack) {
+                        return { action: ActionType.CancelAssignAttack, unit };
+                    }
+                    return { action: ActionType.CancelUseAbility, unit: source };
+                default:
+                    throw new DataError('Unknown targetAction.', source.targetAction);
                 }
             }
 
@@ -492,15 +498,15 @@ export class ReplayParser extends EventEmitter {
             }
 
             if (unit.assignedAttack) {
-                if (this.state.attack() === 0 && this.state.breachAbsorber() &&
-                    unit !== this.state.breachAbsorber()) {
+                const breachAbsorber = this.state.breachAbsorber();
+                if (this.state.attack() === 0 && breachAbsorber && unit !== breachAbsorber) {
                     return {
                         action: ActionType.CancelAssignAttack,
-                        unit: this.state.breachAbsorber(),
+                        unit: breachAbsorber,
                     };
                 }
-                if (this.state.defensesOverran() && blocking(unit)) {
-                    if (frozen(unit)) {
+                if (this.state.defensesOverran() && unit.blocking()) {
+                    if (unit.frozen()) {
                         return { action: ActionType.CancelAssignAttack, unit };
                     }
                     if (this.state.breaching() || unit.defensesBypassed) {
@@ -515,7 +521,7 @@ export class ReplayParser extends EventEmitter {
                 return { action: ActionType.AssignAttack, unit };
             }
             if (this.state.defensesOverran()) {
-                if ((unit.delay && unit.purchased && !blocking(unit)) &&
+                if ((unit.delay && unit.purchased && !unit.blocking()) &&
                     !this.state.canOverKill()) {
                     return {};
                 }
@@ -524,13 +530,13 @@ export class ReplayParser extends EventEmitter {
                 }
                 return { action: ActionType.AssignAttack, unit };
             }
-            if (!blocking(unit) || !this.state.canOverrunDefenses()) {
+            if (!unit.blocking() || !this.state.canOverrunDefenses()) {
                 return {};
             }
             return { action: ActionType.OverrunDefenses };
         }
 
-        if (purchasedThisTurn(unit)) {
+        if (unit.purchasedThisTurn()) {
             return { action: ActionType.CancelPurchase, unit };
         }
         if (unit.constructedBy) {
@@ -687,7 +693,7 @@ export class ReplayParser extends EventEmitter {
             this.restoreSnapshot(snapshot);
             if (wasInDefensePhase === this.state.inDefensePhase) {
                 for (let i = this.state.units.length; i < firstFreeId; i++) {
-                    this.state.units.push({ name: 'UNDO', destroyed: true });
+                    this.state.units.push(undefined);
                 }
             }
             break;
@@ -729,13 +735,16 @@ export class ReplayParser extends EventEmitter {
             throw new InvalidStateError('Invalid target, friendly unit.', clickedUnit);
         }
         const targetAction = this.targetingUnits[0].targetAction;
+        if (targetAction === undefined) {
+            throw new InvalidStateError('Target action not set.', this.targetingUnits[0]);
+        }
         const condition = this.targetingUnits[0].condition;
-        if (!validTarget(clickedUnit, targetAction, condition)) {
+        if (!clickedUnit.validTarget(targetAction, condition)) {
             throw new InvalidStateError('Invalid target.', clickedUnit);
         }
         switch (targetAction) {
         case 'disrupt':
-            if (frozen(clickedUnit)) {
+            if (clickedUnit.frozen()) {
                 throw new InvalidStateError('Invalid target, already frozen.', clickedUnit);
             }
             break;
@@ -754,12 +763,12 @@ export class ReplayParser extends EventEmitter {
                 if (x.name !== clickedUnit.name) {
                     return false;
                 }
-                if (!validTarget(x, targetAction, condition)) {
+                if (!x.validTarget(targetAction, condition)) {
                     return false;
                 }
                 switch (targetAction) {
                 case 'disrupt':
-                    return !frozen(x) && x.assignedAttack === clickedUnit.assignedAttack;
+                    return !x.frozen() && x.assignedAttack === clickedUnit.assignedAttack;
                 case 'snipe':
                     return !x.sacrificed;
                 default:
@@ -794,12 +803,12 @@ export class ReplayParser extends EventEmitter {
         }
         // Cancel targeting when no more valid targets remain
         if (this.targetingUnits.length > 0 && !this.state.slate(this.state.villain()).some(x => {
-            if (!validTarget(x, targetAction, condition)) {
+            if (!x.validTarget(targetAction, condition)) {
                 return false;
             }
             switch (targetAction) {
             case 'disrupt':
-                return !frozen(x);
+                return !x.frozen();
             case 'snipe':
                 return !x.sacrificed;
             default:
@@ -833,29 +842,61 @@ export class ReplayParser extends EventEmitter {
             throw new InvalidStateError('No click action.', clickedUnit);
         }
 
-        if (action === ActionType.CancelAssignAttack && unit.assignedAttack < unit.toughness) {
-            this.addUndoSnapshot();
-            if (unit === clickedUnit && this.state.slate(clickedUnit.player)
-                .some(x => x !== clickedUnit && x.name === clickedUnit.name && !x.delay)) {
-                this.startCombinedAction();
+        let snapshotDone = false;
+        if (action === ActionType.CancelAssignAttack) {
+            if (unit === undefined) {
+                throw new InvalidStateError(`No unit for action: ${action}`);
             }
-        } else if (action === ActionType.CancelAssignDefense && unit.assignedAttack < unit.toughness) {
-            this.addUndoSnapshot();
-        } else if ((TESTABLE_ACTIONS.includes(action) && action !== ActionType.CancelPurchase) ||
-                   action === ActionType.SelectForTargeting) {
-            if (!this.combinedAction) {
+            if (unit.assignedAttack < unit.toughness) {
                 this.addUndoSnapshot();
-                this.startCombinedAction();
+                if (unit === clickedUnit && this.state.slate(clickedUnit.player)
+                    .some(x => x !== clickedUnit && x.name === clickedUnit.name && !x.delay)) {
+                    this.startCombinedAction();
+                }
+                snapshotDone = true;
             }
-        } else if (action !== ActionType.Undo) {
-            this.addUndoSnapshot();
+        } else if (action === ActionType.CancelAssignDefense) {
+            if (unit === undefined) {
+                throw new InvalidStateError(`No unit for action: ${action}`);
+            }
+            if (unit.assignedAttack < unit.toughness) {
+                this.addUndoSnapshot();
+                snapshotDone = true;
+            }
         }
 
-        if (action === ActionType.CancelUseAbility && unit.targetAction && clickedUnit !== unit) {
-            clickedUnit.targetedBy.map((x: number) => this.state.units[x]).forEach((x: Unit) => {
-                this.runAction(action, { unit: x });
-            });
-            return;
+        if (!snapshotDone) {
+            switch (action) {
+            case ActionType.AssignDefense:
+            case ActionType.CancelAssignDefense:
+            case ActionType.AssignAttack:
+            case ActionType.CancelAssignAttack:
+            case ActionType.UseAbility:
+            case ActionType.CancelUseAbility:
+            case ActionType.SelectForTargeting:
+                if (!this.combinedAction) {
+                    this.addUndoSnapshot();
+                    this.startCombinedAction();
+                }
+                break;
+            case ActionType.Undo:
+                break;
+            default:
+                this.addUndoSnapshot();
+                break;
+            }
+        }
+
+        if (action === ActionType.CancelUseAbility) {
+            if (unit === undefined) {
+                throw new InvalidStateError(`No unit for action: ${action}`);
+            }
+            if (unit.targetAction && clickedUnit !== unit) {
+                this.state.targetingUnits(clickedUnit).forEach(x => {
+                    this.runAction(action, { unit: x });
+                });
+                return;
+            }
         }
 
         this.runAction(action, { unit });
@@ -908,13 +949,17 @@ export class ReplayParser extends EventEmitter {
                     return false;
                 }
                 // Completely chilled and partly chilled units are considered different
-                if (unit.targetAction === 'disrupt' && frozen(clickedUnit) !== frozen(x)) {
+                if (unit.targetAction === 'disrupt' && clickedUnit.frozen() !== x.frozen()) {
                     return false;
                 }
                 return true;
             });
-            targets.reduce((s, x) => s.concat(x.targetedBy), []).map((x: number) => this.state.units[x])
-                .forEach((x: Unit) => {
+            targets.reduce((s, x) => s.concat(x.targetedBy), [] as number[])
+                .map(x => this.state.units[x])
+                .forEach(x => {
+                    if (x === undefined) {
+                        throw new InvalidStateError('Targeted by removed unit.');
+                    }
                     this.runAction(ActionType.CancelUseAbility, { unit: x });
                 });
             return;
@@ -931,8 +976,7 @@ export class ReplayParser extends EventEmitter {
                 return false;
             }
             // Frontline units are in different groups based on blocking status
-            if (action === ActionType.AssignAttack && x.undefendable &&
-                blocking(x) !== blocking(unit)) {
+            if (action === ActionType.AssignAttack && x.undefendable && x.blocking() !== unit.blocking()) {
                 return false;
             }
             const xClick = this.getClickAction(x);
@@ -953,15 +997,19 @@ export class ReplayParser extends EventEmitter {
             throw new InvalidStateError('Shift-click with no matches.', clickedUnit);
         }
         sortShiftClickMatches(action, matching);
+
         // make sure to undo breachAbsorber first
-        if (action === ActionType.CancelAssignAttack && this.state.breachAbsorber() &&
-            matching.includes(this.state.breachAbsorber())) {
-            const i = matching.indexOf(this.state.breachAbsorber());
-            if (i !== 0) {
-                matching[i] = matching[0];
-                matching[0] = this.state.breachAbsorber();
+        if (action === ActionType.CancelAssignAttack) {
+            const breachAbsorber = this.state.breachAbsorber();
+            if (breachAbsorber !== undefined && matching.includes(breachAbsorber)) {
+                const i = matching.indexOf(breachAbsorber);
+                if (i !== 0) {
+                    matching[i] = matching[0];
+                    matching[0] = breachAbsorber;
+                }
             }
         }
+
         this.runAction(action, { unit: matching[0] });
         matching.slice(1).some(x => {
             if (action !== ActionType.SelectForTargeting && !canExecuteAction(this.state, action, x)) {

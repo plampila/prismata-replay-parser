@@ -61,7 +61,7 @@ type ScriptCreateRule = [string, 'own' | 'opponent', number?, number?, number?];
 /** Unit name and count */
 export type SacrificeRule = [string, number?];
 
-interface Condition {
+export interface Condition {
     isABC?: 1;
     healthAtMost?: number;
     nameIn?: string[];
@@ -88,7 +88,8 @@ export function convertBlueprintFromReplay(data: ReplayBlueprint): Blueprint {
         toughness: def(data.toughness, 1),
         undefendable: data.undefendable === 1,
 
-        abilityCost: typeof data.abilityCost === 'string' ? data.abilityCost : String(data.abilityCost),
+        abilityCost: data.abilityCost === undefined || typeof data.abilityCost === 'string' ?
+            data.abilityCost : String(data.abilityCost),
         abilityNetherfy: def(data.abilityNetherfy, false),
         abilitySac: data.abilitySac,
         abilityScript: convertScript(data.abilityScript),
@@ -166,16 +167,18 @@ export function renameBlueprintFields(x: Blueprint, renames: Map<string, string>
     }
 
     if (x.abilitySac !== undefined) {
-        x.abilitySac.forEach((rule: any) => {
-            if (renames.get(rule[0])) {
-                rule[0] = renames.get(rule[0]);
+        x.abilitySac.forEach(rule => {
+            const newRuleName = renames.get(rule[0]);
+            if (newRuleName !== undefined) {
+                rule[0] = newRuleName;
             }
         });
     }
     if (x.buySac !== undefined) {
-        x.buySac.forEach((rule: any) => {
-            if (renames.get(rule[0])) {
-                rule[0] = renames.get(rule[0]);
+        x.buySac.forEach(rule => {
+            const newRuleName = renames.get(rule[0]);
+            if (newRuleName !== undefined) {
+                rule[0] = newRuleName;
             }
         });
     }
