@@ -1,5 +1,4 @@
 import { DataError } from './customErrors';
-import { Resources } from './gameState';
 import { Unit } from './unit';
 
 // tslint:disable:no-unsafe-any
@@ -18,27 +17,6 @@ export function deepClone<T>(o: any): T {
     return temp;
 }
 // tslint:enable:no-unsafe-any
-
-export function parseResources(resources: string | number): Resources {
-    function count(str: string, type: string): number {
-        return (str.match(new RegExp(type, 'g')) || []).length;
-    }
-
-    // Pure gold might be given as a number instead of a string.
-    let res = resources;
-    if (typeof res === 'number') {
-        res = String(resources);
-    }
-
-    return {
-        gold: parseInt(res, 10) || 0,
-        green: count(res, 'G'),
-        blue: count(res, 'B'),
-        red: count(res, 'C'),
-        energy: count(res, 'H'),
-        attack: count(res, 'A'),
-    };
-}
 
 export function targetingIsUseful(units: Unit[], target: Unit): boolean {
     switch (units[0].targetAction) {

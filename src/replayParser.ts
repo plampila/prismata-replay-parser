@@ -5,13 +5,14 @@ import * as timsort from 'timsort';
 import { convertBlueprintFromReplay, renameBlueprintFields } from './blueprint';
 import { ActionType, EndCondition, GameFormat, ReplayCommandType } from './constants';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
-import { GameState, GameStateSnapshot, InitialState, Player, Resources } from './gameState';
+import { GameState, GameStateSnapshot, InitialState, Player } from './gameState';
 import { ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime } from './replayData';
 import { convert as convert146 } from './replayData146';
 import { convert as convert153 } from './replayData153';
 import { ReplayDataValidator } from './replayDataValidator';
+import { parseResources, Resources } from './resources';
 import { Unit } from './unit';
-import { parseResources, targetingIsUseful } from './util';
+import { targetingIsUseful } from './util';
 
 const DRAW_END_CONDITIONS = [EndCondition.Repetition, EndCondition.DoubleDisconnect, EndCondition.Draw];
 

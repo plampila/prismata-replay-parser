@@ -1,6 +1,7 @@
 import { DataError } from '.';
 import { Blueprint, Condition, SacrificeRule, Script } from './blueprint';
 import { Player } from './gameState';
+import { Resources } from './resources';
 
 interface UnitOptions {
     buildTime?: number;
@@ -49,12 +50,12 @@ export class Unit {
         this.toughness = blueprint.toughness;
     }
 
-    public get abilityCost(): string | undefined { return this.blueprint.abilityCost; }
+    public get abilityCost(): Resources | undefined { return this.blueprint.abilityCost; }
     public get abilityNetherfy(): boolean { return this.blueprint.abilityNetherfy; }
     public get abilitySac(): SacrificeRule[] | undefined { return this.blueprint.abilitySac; }
     public get abilityScript(): Script | undefined { return this.blueprint.abilityScript; }
     public get beginOwnTurnScript(): Script | undefined { return this.blueprint.beginOwnTurnScript; }
-    public get buyCost(): string | undefined { return this.blueprint.buyCost; }
+    public get buyCost(): Resources | undefined { return this.blueprint.buyCost; }
     public get buySac(): SacrificeRule[] | undefined { return this.blueprint.buySac; }
     public get buyScript(): Script | undefined { return this.blueprint.buyScript; }
     public get condition(): Condition | undefined { return this.blueprint.condition; }

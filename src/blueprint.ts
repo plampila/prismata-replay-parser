@@ -1,5 +1,6 @@
 import { DataError } from './customErrors';
 import { ReplayBlueprint, ReplayBlueprintScript } from './replayData';
+import { parseResources, Resources } from './resources';
 
 const RARITIES: {
     [name: string]: number | undefined;
@@ -28,7 +29,7 @@ export interface Blueprint {
     undefendable: boolean; // Frontline
 
     // Click abilities
-    abilityCost?: string;
+    abilityCost: Resources;
     abilityNetherfy: boolean; // Deadeye snipe
     abilitySac?: SacrificeRule[];
     abilityScript?: Script;
@@ -37,7 +38,7 @@ export interface Blueprint {
     targetAmount?: number;
 
     // Purchasing
-    buyCost?: string;
+    buyCost: Resources;
     buySac?: SacrificeRule[];
     buyScript?: Script;
 
@@ -51,7 +52,7 @@ export interface Blueprint {
 export interface Script {
     create?: ScriptCreateRule[];
     delay?: number;
-    receive?: string;
+    receive: Resources;
     selfsac?: boolean;
 }
 
@@ -88,8 +89,7 @@ export function convertBlueprintFromReplay(data: ReplayBlueprint): Blueprint {
         toughness: def(data.toughness, 1),
         undefendable: data.undefendable === 1,
 
-        abilityCost: data.abilityCost === undefined || typeof data.abilityCost === 'string' ?
-            data.abilityCost : String(data.abilityCost),
+        abilityCost: convertResources(data.abilityCost),
         abilityNetherfy: def(data.abilityNetherfy, false),
         abilitySac: data.abilitySac,
         abilityScript: convertScript(data.abilityScript),
@@ -97,7 +97,7 @@ export function convertBlueprintFromReplay(data: ReplayBlueprint): Blueprint {
         targetAction: data.targetAction,
         targetAmount: data.targetAmount,
 
-        buyCost: data.buyCost,
+        buyCost: convertResources(data.buyCost),
         buySac: data.buySac,
         buyScript: convertScript(data.buyScript),
 
@@ -118,7 +118,6 @@ function rarityToSupply(rarity?: string): number | undefined {
     }
     return supply;
 }
-
 function convertScript(script?: ReplayBlueprintScript): Script | undefined {
     if (script === undefined) {
         return undefined;
@@ -126,9 +125,13 @@ function convertScript(script?: ReplayBlueprintScript): Script | undefined {
     return {
         create: script.create,
         delay: script.delay,
-        receive: typeof script.receive === 'string' ? script.receive : String(script.receive),
+        receive: convertResources(script.receive),
         selfsac: script.selfsac,
     };
+}
+
+function convertResources(value: string | number | undefined): Resources {
+    return parseResources(value === undefined ? '0' : String(value));
 }
 
 function renameScript(script: Script, renames: Map<string, string>): void {

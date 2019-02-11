@@ -5,8 +5,9 @@ import * as timsort from 'timsort';
 import { Blueprint, SacrificeRule, Script } from './blueprint';
 import { ActionType } from './constants';
 import { DataError, InvalidStateError } from './customErrors';
+import { parseResources, Resources } from './resources';
 import { Unit } from './unit';
-import { deepClone, parseResources } from './util';
+import { deepClone } from './util';
 
 export enum Player {
     First = 0,
@@ -17,15 +18,6 @@ export type Deck = Blueprint[];
 
 export interface Supplies {
     [unitName: string]: number;
-}
-
-export interface Resources {
-    gold: number;
-    green: number;
-    blue: number;
-    red: number;
-    energy: number;
-    attack: number;
 }
 
 type InitialUnitList = Array<[number, string]>;
@@ -282,34 +274,31 @@ export class GameState extends EventEmitter {
         this.resources[player].attack -= amount;
     }
 
-    private addResources(resources: string, player: Player = this.activePlayer): void {
-        const parsed = parseResources(resources);
-        this.resources[player].gold += parsed.gold;
-        this.resources[player].green += parsed.green;
-        this.resources[player].blue += parsed.blue;
-        this.resources[player].red += parsed.red;
-        this.resources[player].energy += parsed.energy;
-        this.addAttack(parsed.attack);
+    private addResources(resources: Resources, player: Player = this.activePlayer): void {
+        this.resources[player].gold += resources.gold;
+        this.resources[player].green += resources.green;
+        this.resources[player].blue += resources.blue;
+        this.resources[player].red += resources.red;
+        this.resources[player].energy += resources.energy;
+        this.addAttack(resources.attack);
     }
 
-    private removeResources(resources: string, player: Player = this.activePlayer): void {
-        const parsed = parseResources(resources);
-        this.resources[player].gold -= parsed.gold;
-        this.resources[player].green -= parsed.green;
-        this.resources[player].blue -= parsed.blue;
-        this.resources[player].red -= parsed.red;
-        this.resources[player].energy -= parsed.energy;
-        this.removeAttack(parsed.attack);
+    private removeResources(resources: Resources, player: Player = this.activePlayer): void {
+        this.resources[player].gold -= resources.gold;
+        this.resources[player].green -= resources.green;
+        this.resources[player].blue -= resources.blue;
+        this.resources[player].red -= resources.red;
+        this.resources[player].energy -= resources.energy;
+        this.removeAttack(resources.attack);
     }
 
-    private canRemoveResources(resources: string, player: Player = this.activePlayer): boolean {
-        const parsed = parseResources(resources);
-        return this.resources[player].gold >= parsed.gold &&
-            this.resources[player].green >= parsed.green &&
-            this.resources[player].blue >= parsed.blue &&
-            this.resources[player].red >= parsed.red &&
-            this.resources[player].energy >= parsed.energy &&
-            this.resources[player].attack >= parsed.attack;
+    private canRemoveResources(resources: Resources, player: Player = this.activePlayer): boolean {
+        return this.resources[player].gold >= resources.gold &&
+            this.resources[player].green >= resources.green &&
+            this.resources[player].blue >= resources.blue &&
+            this.resources[player].red >= resources.red &&
+            this.resources[player].energy >= resources.energy &&
+            this.resources[player].attack >= resources.attack;
     }
 
     private sacrificeList(name: string, player: Player = this.activePlayer): Unit[] {
@@ -375,9 +364,7 @@ export class GameState extends EventEmitter {
             unit.delay = script.delay;
         }
 
-        if (script.receive !== undefined) {
-            this.addResources(script.receive);
-        }
+        this.addResources(script.receive);
 
         if (script.selfsac) {
             unit.sacrificed = true;
@@ -385,7 +372,7 @@ export class GameState extends EventEmitter {
     }
 
     private canReverseScript(script: Script): boolean {
-        if (script.receive !== undefined && !this.canRemoveResources(script.receive)) {
+        if (!this.canRemoveResources(script.receive)) {
             return false;
         }
         return true;
@@ -411,9 +398,7 @@ export class GameState extends EventEmitter {
             unit.delay = undefined;
         }
 
-        if (script.receive !== undefined) {
-            this.removeResources(script.receive);
-        }
+        this.removeResources(script.receive);
 
         if (script.selfsac) {
             if (!unit.sacrificed) {
@@ -591,9 +576,6 @@ export class GameState extends EventEmitter {
         if (!this.supplies[this.activePlayer][blueprint.name]) {
             return false;
         }
-        if (blueprint.buyCost === undefined) {
-            throw new InvalidStateError('Blueprint buyCost not set.');
-        }
         if (!this.canRemoveResources(blueprint.buyCost)) {
             return false;
         }
@@ -616,9 +598,6 @@ export class GameState extends EventEmitter {
         this.supplies[this.activePlayer][blueprint.name]--;
         assert(this.supplies[this.activePlayer][blueprint.name] >= 0);
 
-        if (blueprint.buyCost === undefined) {
-            throw new InvalidStateError('Blueprint buyCost not set.');
-        }
         this.removeResources(blueprint.buyCost);
 
         if (blueprint.buySac) {
