@@ -76,7 +76,7 @@ const REPLAY_COMMANDS_WITH_IDS = [
     ReplayCommandType.ShiftClickBlueprint,
 ];
 
-let replayDataValidator: ReplayDataValidator | undefined;
+const replayDataValidator = new ReplayDataValidator(false);
 let replayDataValidatorStrict: ReplayDataValidator | undefined;
 
 function canExecuteAction(state: GameState, actionType: ActionType, unit: Unit): boolean {
@@ -435,9 +435,6 @@ export class ReplayParser extends EventEmitter {
             }
             validator = replayDataValidatorStrict;
         } else {
-            if (replayDataValidator === undefined) {
-                replayDataValidator = new ReplayDataValidator(false);
-            }
             validator = replayDataValidator;
         }
 
@@ -457,6 +454,10 @@ export class ReplayParser extends EventEmitter {
             parsed = convert153(parsed);
         } else if (!validator.isReplayData(parsed)) {
             throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validator.errorText()}`);
+        }
+
+        if (options.strict) {
+            replayDataValidator.isReplayData(parsed); // remove unused properties
         }
 
         this.data = parsed;

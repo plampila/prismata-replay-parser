@@ -23,13 +23,13 @@ export class ReplayDataValidator {
 
     constructor(strict: boolean) {
         if (strict) {
-            this.ajv = new Ajv();
+            this.ajv = new Ajv({ extendRefs: 'fail' });
             this.validateSchema = this.ajv.compile(dataStrictSchema);
             this.validate146Schema = this.ajv.compile(dataStrict146Schema);
             this.validate153Schema = this.ajv.compile(dataStrict153Schema);
             this.validateServerVersionSchema = this.ajv.compile(serverVersionSchema);
         } else {
-            this.ajv = new Ajv({ removeAdditional: true });
+            this.ajv = new Ajv({ extendRefs: 'fail', removeAdditional: true });
             this.validateSchema = this.ajv.compile(dataSchema);
             this.validate146Schema = this.ajv.compile(data146Schema);
             this.validate153Schema = this.ajv.compile(data153Schema);
