@@ -3,15 +3,7 @@
 import {
     ReplayBlueprint, ReplayBlueprintStrict, ReplayCommandInfo, ReplayData, ReplayDeckInfo, ReplayInitCards,
     ReplayInitInfo, ReplayPlayerInfo, ReplayRatingInfo, ReplayTimeInfo, ReplayVersionInfo, ReplayVersionInfoStrict,
-} from './replayData.js';
-
-export interface ReplayServerVersion {
-    versionInfo: {
-        serverVersion: number;
-        [name: string]: any;
-    };
-    [name: string]: any;
-}
+} from './replayData';
 
 export interface ReplayData153 {
     code: string;
@@ -94,23 +86,23 @@ export interface ReplayPlayerInfoStrict153 extends ReplayPlayerInfo153 {
     playerBots: [ReplayBotInfoStrict153 | null, ReplayBotInfoStrict153 | null];
 }
 
-export interface ReplayBotInfo153 {
+interface ReplayBotInfo153 {
     name?: string; // serverVersion >= 62, serverVersion <= 115
     difficulty?: string; // serverVersion >= 125, serverVersion <= 153
 }
 
-export interface ReplayBotInfoStrict153 extends ReplayBotInfo153 {
+interface ReplayBotInfoStrict153 extends ReplayBotInfo153 {
     version?: number;
     params?: {};
 }
 
-export interface ReplayRatingInfo153 {
+interface ReplayRatingInfo153 {
     finalRatings: [ReplayPlayerRating153 | null, ReplayPlayerRating153 | null];
     initialRatings: [ReplayPlayerRating153 | null, ReplayPlayerRating153 | null];
     ratingChanges: [[number, number] | null, [number, number] | null];
 }
 
-export interface ReplayRatingInfoStrict153 extends ReplayRatingInfo153 {
+interface ReplayRatingInfoStrict153 extends ReplayRatingInfo153 {
     ratedGame: boolean; // serverVersion <= 343
 
     expChanges: [number | null, number | null];
@@ -120,13 +112,13 @@ export interface ReplayRatingInfoStrict153 extends ReplayRatingInfo153 {
     starChanges: [number | null, number | null];
 }
 
-export interface ReplayPlayerRating153 {
+interface ReplayPlayerRating153 {
     displayRating?: number; // serverVersion >= 147, optional
     tier: number;
     tierPercent: number;
 }
 
-export interface ReplayPlayerRatingStrict153 extends ReplayPlayerRating153 {
+interface ReplayPlayerRatingStrict153 extends ReplayPlayerRating153 {
     botGamesPlayed: number;
     customGamesPlayed: number;
     dominionELO: number;

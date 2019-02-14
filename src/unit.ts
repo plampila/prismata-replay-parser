@@ -1,5 +1,5 @@
-import { DataError } from '.';
 import { Blueprint, Condition, SacrificeRule, Script } from './blueprint';
+import { DataError } from './customErrors';
 import { Player } from './gameState';
 import { Resources } from './resources';
 

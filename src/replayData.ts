@@ -58,7 +58,7 @@ export interface ReplayCommand {
     _id: number;
 }
 
-export interface ReplayCommandStrict extends ReplayCommand {
+interface ReplayCommandStrict extends ReplayCommand {
     _params?: {};
 }
 
@@ -76,7 +76,7 @@ interface ReplayDeckInfoStrict extends ReplayDeckInfo {
     mergedDeck: ReplayBlueprintStrict[];
 }
 
-export type ReplayDeckList = Array<string | [string, number]>;
+type ReplayDeckList = Array<string | [string, number]>;
 
 export interface ReplayBlueprint {
     name: string;
@@ -192,7 +192,7 @@ export interface ReplayRatingInfo {
     ratingChanges: [[number, number] | null, [number, number] | null];
 }
 
-export interface ReplayRatingInfoStrict extends ReplayRatingInfo {
+interface ReplayRatingInfoStrict extends ReplayRatingInfo {
     ratedGame?: boolean; // serverVersion <= 343
 
     expChanges?: [number | null, number | null]; // serverVersion <= 343
@@ -208,7 +208,7 @@ export interface ReplayPlayerRating {
     tierPercent: number;
 }
 
-export interface ReplayPlayerRatingStrict extends ReplayPlayerRating {
+interface ReplayPlayerRatingStrict extends ReplayPlayerRating {
     botGamesPlayed: number;
     casualGamesWon?: number; // serverVersion >= 345, optional
     customGamesPlayed: number;
@@ -229,7 +229,7 @@ export interface ReplayTimeInfo {
     playerTime: [ReplayPlayerTime, ReplayPlayerTime];
 }
 
-export interface ReplayTimeInfoStrict extends ReplayTimeInfo {
+interface ReplayTimeInfoStrict extends ReplayTimeInfo {
     correspondence: false;
     graceCurrentTime: number;
     gracePeriod: number;

@@ -2,20 +2,12 @@
 
 import {
     ReplayCommandInfo, ReplayData, ReplayRatingInfo, ReplayVersionInfo,
-} from './replayData.js';
+} from './replayData';
 
 import {
     convert as convert153, ReplayCommandInfoStrict153, ReplayDeckInfo153, ReplayDeckInfoStrict153, ReplayInitInfo153,
     ReplayInitInfoStrict153, ReplayPlayerInfo153, ReplayPlayerInfoStrict153, ReplayTimeInfo153, ReplayTimeInfoStrict153,
-} from './replayData153.js';
-
-export interface ReplayServerVersion {
-    versionInfo: {
-        serverVersion: number;
-        [name: string]: any;
-    };
-    [name: string]: any;
-}
+} from './replayData153';
 
 export interface ReplayData146 {
     code: string;
@@ -66,10 +58,10 @@ interface ReplayRatingInfoStrict146 extends ReplayRatingInfo146 {
 }
 
 // tslint:disable-next-line:no-empty-interface
-export interface ReplayPlayerRating146 {
+interface ReplayPlayerRating146 {
 }
 
-export interface ReplayPlayerRatingStrict146 extends ReplayPlayerRating146 {
+interface ReplayPlayerRatingStrict146 extends ReplayPlayerRating146 {
     dominionELO: number;
     exp?: number; // optional
     hStars: number;
@@ -80,7 +72,7 @@ export interface ReplayPlayerRatingStrict146 extends ReplayPlayerRating146 {
     winLastLast: boolean;
 }
 
-export interface ReplayVersionInfoStrict146 extends ReplayVersionInfo {
+interface ReplayVersionInfoStrict146 extends ReplayVersionInfo {
     playerVersions: [string, string]; // always empty strings if serverVersion >= 146
 }
 

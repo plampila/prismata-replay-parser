@@ -8,9 +8,7 @@ import minimist from 'minimist';
 import sourceMapSupport from 'source-map-support';
 import * as zlib from 'zlib';
 
-import { NotImplementedError, ReplayParser } from '..';
-import { ActionType, EndCondition, GameFormat } from '../constants';
-import { Player } from '../gameState';
+import { ActionType, EndCondition, GameFormat, NotImplementedError, Player, ReplayParser } from '..';
 
 function loadSync(file: string): Buffer {
     if (file.endsWith('.gz')) {

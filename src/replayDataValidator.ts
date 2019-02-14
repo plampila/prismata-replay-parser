@@ -1,8 +1,8 @@
 import Ajv from 'ajv';
 
-import { ReplayData, ReplayServerVersion } from './replayData.js';
-import { ReplayData146 } from './replayData146.js';
-import { ReplayData153 } from './replayData153.js';
+import { ReplayData, ReplayServerVersion } from './replayData';
+import { ReplayData146 } from './replayData146';
+import { ReplayData153 } from './replayData153';
 
 import dataSchema from './schemas/ReplayData.schema.json';
 import data146Schema from './schemas/ReplayData146.schema.json';

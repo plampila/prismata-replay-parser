@@ -3,8 +3,8 @@ import { EventEmitter } from 'events';
 import * as timsort from 'timsort';
 
 import { Blueprint, SacrificeRule, Script } from './blueprint';
-import { ActionType } from './constants';
 import { DataError, InvalidStateError } from './customErrors';
+import { ActionType } from './replayParser';
 import { parseResources, Resources } from './resources';
 import { Unit } from './unit';
 import { deepClone } from './util';
@@ -14,9 +14,9 @@ export enum Player {
     Second = 1,
 }
 
-export type Deck = Blueprint[];
+type Deck = Blueprint[];
 
-export interface Supplies {
+interface Supplies {
     [unitName: string]: number;
 }
 
@@ -52,15 +52,24 @@ export declare interface GameState {
 
 export class GameState extends EventEmitter {
     public deck: Deck = [];
-    private turnNumber: number = 0;
     public activePlayer: Player = Player.First;
     public inDefensePhase: boolean = false;
+    public units: Array<Unit | undefined> = [];
+
+    private turnNumberValue: number = 0;
     private supplies: [Supplies, Supplies] = [{}, {}];
     private resources: [Resources, Resources] = [parseResources('0'), parseResources('0')];
-    public units: Array<Unit | undefined> = [];
 
     constructor() {
         super();
+    }
+
+    public get turnNumber(): number {
+        return this.turnNumberValue;
+    }
+
+    public getSupplies(player: Player): Supplies {
+        return this.supplies[player];
     }
 
     // Helpers
@@ -494,7 +503,7 @@ export class GameState extends EventEmitter {
     public startTurn(): void {
         this.activePlayer = this.villain();
         if (this.activePlayer === Player.First) {
-            this.turnNumber++;
+            this.turnNumberValue++;
         }
         this.emit('turnStarted', this.turnNumber, this.activePlayer);
         if (this.attack(this.villain()) > 0) {
@@ -986,7 +995,7 @@ export class GameState extends EventEmitter {
         this.initPlayer(Player.First, info.initCards[0], info.baseSets[0], info.randomSets[0], info.infiniteSupplies);
         this.initPlayer(Player.Second, info.initCards[1], info.baseSets[1], info.randomSets[1], info.infiniteSupplies);
 
-        this.turnNumber = 1;
+        this.turnNumberValue = 1;
         this.activePlayer = Player.First;
         this.inDefensePhase = false;
         this.emit('turnStarted', this.turnNumber, this.activePlayer);
@@ -1007,7 +1016,7 @@ export class GameState extends EventEmitter {
 
     public restoreSnapshot(snapshot: GameStateSnapshot): void {
         this.deck = deepClone(snapshot.deck);
-        this.turnNumber = snapshot.turnNumber;
+        this.turnNumberValue = snapshot.turnNumber;
         this.activePlayer = snapshot.activePlayer;
         this.inDefensePhase = snapshot.inDefensePhase;
         this.supplies = deepClone(snapshot.supplies);
