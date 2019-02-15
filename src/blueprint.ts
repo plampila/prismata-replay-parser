@@ -1,5 +1,7 @@
 import { DataError } from './customErrors';
-import { ReplayBlueprint, ReplayBlueprintScript } from './replayData';
+import {
+    ReplayBlueprint, ReplayBlueprintSacrificeRule, ReplayBlueprintScript, ReplayBlueprintScriptCreateRule,
+} from './replayData';
 import { parseResources, Resources } from './resources';
 
 const RARITIES: {
@@ -50,17 +52,24 @@ export interface Blueprint {
 }
 
 export interface Script {
-    create?: ScriptCreateRule[];
-    delay?: number;
+    create: ScriptCreateRule[];
+    delay: number;
     receive: Resources;
-    selfsac?: boolean;
+    selfsac: boolean;
 }
 
-/** Unit name, target (own or enemy), count, build time, lifespan */
-type ScriptCreateRule = [string, 'own' | 'opponent', number?, number?, number?];
+interface ScriptCreateRule {
+    unitName: string;
+    forOpponent: boolean;
+    count: number;
+    buildTime: number;
+    customLifespan?: number;
+}
 
-/** Unit name and count */
-export type SacrificeRule = [string, number?];
+export interface SacrificeRule {
+    unitName: string;
+    count: number;
+}
 
 export interface Condition {
     isABC?: 1;
@@ -91,14 +100,14 @@ export function convertBlueprintFromReplay(data: ReplayBlueprint): Blueprint {
 
         abilityCost: convertResources(data.abilityCost),
         abilityNetherfy: def(data.abilityNetherfy, false),
-        abilitySac: data.abilitySac,
+        abilitySac: data.abilitySac !== undefined ? data.abilitySac.map(convertSacrificeRule) : undefined,
         abilityScript: convertScript(data.abilityScript),
         HPUsed: def(data.HPUsed, 0),
         targetAction: data.targetAction,
         targetAmount: data.targetAmount,
 
         buyCost: convertResources(data.buyCost),
-        buySac: data.buySac,
+        buySac: data.buySac !== undefined ? data.buySac.map(convertSacrificeRule) : undefined,
         buyScript: convertScript(data.buyScript),
 
         beginOwnTurnScript: convertScript(data.beginOwnTurnScript),
@@ -118,15 +127,33 @@ function rarityToSupply(rarity?: string): number | undefined {
     }
     return supply;
 }
+
+function convertSacrificeRule(rule: ReplayBlueprintSacrificeRule): SacrificeRule {
+    return {
+        unitName: rule[0],
+        count: rule[1] !== undefined ? rule[1] : 1,
+    };
+}
+
 function convertScript(script?: ReplayBlueprintScript): Script | undefined {
     if (script === undefined) {
         return undefined;
     }
     return {
-        create: script.create,
-        delay: script.delay,
+        create: script.create !== undefined ? script.create.map(convertScriptCreateRule) : [],
+        delay: script.delay !== undefined ? script.delay : 0,
         receive: convertResources(script.receive),
-        selfsac: script.selfsac,
+        selfsac: script.selfsac === true,
+    };
+}
+
+function convertScriptCreateRule(rule: ReplayBlueprintScriptCreateRule): ScriptCreateRule {
+    return {
+        unitName: rule[0],
+        forOpponent: rule[1] === 'opponent',
+        count: rule[2] !== undefined ? rule[2] : 1,
+        buildTime: rule[3] !== undefined ? rule[3] : 1,
+        customLifespan: rule[4],
     };
 }
 
@@ -135,14 +162,12 @@ function convertResources(value: string | number | undefined): Resources {
 }
 
 function renameScript(script: Script, renames: Map<string, string>): void {
-    if (script.create !== undefined) {
-        script.create.forEach(rule => {
-            const newName = renames.get(rule[0]);
-            if (newName !== undefined) {
-                rule[0] = newName;
-            }
-        });
-    }
+    script.create.forEach(rule => {
+        const newName = renames.get(rule.unitName);
+        if (newName !== undefined) {
+            rule.unitName = newName;
+        }
+    });
 }
 
 export function renameBlueprintFields(x: Blueprint, renames: Map<string, string>): void {
@@ -171,17 +196,17 @@ export function renameBlueprintFields(x: Blueprint, renames: Map<string, string>
 
     if (x.abilitySac !== undefined) {
         x.abilitySac.forEach(rule => {
-            const newRuleName = renames.get(rule[0]);
+            const newRuleName = renames.get(rule.unitName);
             if (newRuleName !== undefined) {
-                rule[0] = newRuleName;
+                rule.unitName = newRuleName;
             }
         });
     }
     if (x.buySac !== undefined) {
         x.buySac.forEach(rule => {
-            const newRuleName = renames.get(rule[0]);
+            const newRuleName = renames.get(rule.unitName);
             if (newRuleName !== undefined) {
-                rule[0] = newRuleName;
+                rule.unitName = newRuleName;
             }
         });
     }

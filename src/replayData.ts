@@ -137,7 +137,8 @@ type ReplayBlueprintBoolean = 0 | 1;
 type ReplayBlueprintNumber = number | string;
 type ReplayBlueprintString = string | number;
 
-type ReplayBlueprintSacrificeRule = [string] | [string, number];
+/** Unit name, count */
+export type ReplayBlueprintSacrificeRule = [string] | [string, number];
 
 export interface ReplayBlueprintScript {
     create?: ReplayBlueprintScriptCreateRule[];
@@ -146,7 +147,8 @@ export interface ReplayBlueprintScript {
     selfsac?: true;
 }
 
-type ReplayBlueprintScriptCreateRule = [string, 'own' | 'opponent', number?, number?, number?];
+/** Unit name, target, count, custom build time, custom lifespan */
+export type ReplayBlueprintScriptCreateRule = [string, 'own' | 'opponent', number?, number?, number?];
 
 interface ReplayBlueprintCondition {
     isABC?: 1;

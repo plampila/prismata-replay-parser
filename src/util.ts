@@ -25,7 +25,7 @@ export function targetingIsUseful(units: Unit[], target: Unit): boolean {
             throw new DataError('Invalid targetAmount.', units[0]);
         }
         // Bug in the game: Should be taking existing freeze into account
-        return !target.disruption && target.toughness <= units[0].targetAmount * units.length;
+        return target.disruption === 0 && target.toughness <= units[0].targetAmount * units.length;
     case 'snipe':
         return true;
     default:

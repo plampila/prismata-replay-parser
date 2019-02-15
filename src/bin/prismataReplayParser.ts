@@ -45,7 +45,7 @@ function listGameplayEvents(replayData: Buffer, options: ListGameplayEventsOptio
     console.info(`Start position P1: ${JSON.stringify(parser.getStartPosition(Player.First))}`);
     console.info(`Start position P2: ${JSON.stringify(parser.getStartPosition(Player.Second))}`);
 
-    if (options.showCommands) {
+    if (options.showCommands === true) {
         parser.on('command', (command, id) => {
             if (id !== undefined) {
                 log(1, `${command} ${id}`);
@@ -56,18 +56,19 @@ function listGameplayEvents(replayData: Buffer, options: ListGameplayEventsOptio
     }
 
     parser.on('action', (type, data) => {
-        if (data && data.unit !== undefined && data.target !== undefined) {
-            log(options.showCommands ? 2 : 1, `Action: ${ActionType[type]} ${data.unit.name} -> ${data.target.name}`);
-        } else if (data && data.unit !== undefined) {
-            log(options.showCommands ? 2 : 1, `${ActionType[type]} ${data.unit.name}`);
-        } else if (data && data.name !== undefined) {
-            log(options.showCommands ? 2 : 1, `${ActionType[type]} ${data.name}`);
+        if (data.unit !== undefined && data.target !== undefined) {
+            log(options.showCommands === true ? 2 : 1,
+                `Action: ${ActionType[type]} ${data.unit.name} -> ${data.target.name}`);
+        } else if (data.unit !== undefined) {
+            log(options.showCommands === true ? 2 : 1, `${ActionType[type]} ${data.unit.name}`);
+        } else if (data.name !== undefined) {
+            log(options.showCommands === true ? 2 : 1, `${ActionType[type]} ${data.name}`);
         } else {
-            log(options.showCommands ? 2 : 1, ActionType[type]);
+            log(options.showCommands === true ? 2 : 1, ActionType[type]);
         }
     });
 
-    if (options.showUndoPoints) {
+    if (options.showUndoPoints === true) {
         parser.on('undoSnapshot', () => {
             log(0, '-- undo point');
         });
@@ -78,19 +79,19 @@ function listGameplayEvents(replayData: Buffer, options: ListGameplayEventsOptio
     });
 
     state.on('unitDestroyed', (unit, reason) => {
-        log(options.showCommands ? 3 : 2, `Unit destroyed (${reason}): ${unit.name}`);
+        log(options.showCommands === true ? 3 : 2, `Unit destroyed (${reason}): ${unit.name}`);
     });
 
     state.on('unitConstructed', unit => {
-        log(options.showCommands ? 3 : 2, `Unit constructed: ${unit.name}`);
+        log(options.showCommands === true ? 3 : 2, `Unit constructed: ${unit.name}`);
     });
 
     state.on('autoAction', (type, unit) => {
-        log(options.showCommands ? 3 : 2, `Automatic action: ${type} ${unit.name}`);
+        log(options.showCommands === true ? 3 : 2, `Automatic action: ${type} ${unit.name}`);
     });
 
     state.on('assignAttackBlocker', unit => {
-        log(options.showCommands ? 3 : 2, `Assigning attack to blocker: ${unit.name}`);
+        log(options.showCommands === true ? 3 : 2, `Assigning attack to blocker: ${unit.name}`);
     });
 
     parser.run();
@@ -210,7 +211,7 @@ async function main(): Promise<void> {
     }
 }
 
-if (!module.parent) {
+if (module.parent === null) {
     main()
         .catch(e => {
             console.error(e);

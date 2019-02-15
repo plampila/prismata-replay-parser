@@ -635,7 +635,7 @@ export class ReplayParser extends EventEmitter {
             return {};
         }
         if (unit.abilityUsed) {
-            if (unit.sacrificed && (!unit.abilityScript || unit.abilityScript.selfsac === undefined)) {
+            if (unit.sacrificed && (!unit.abilityScript || !unit.abilityScript.selfsac)) {
                 return {};
             }
             return { action: ActionType.CancelUseAbility, unit };

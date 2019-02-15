@@ -1,6 +1,6 @@
 export class NotImplementedError extends Error {
     constructor(feature: string) {
-        super(feature ? `Feature not implemented: ${feature}` : 'Not implemented.');
+        super(`Feature not implemented: ${feature}`);
     }
 }
 

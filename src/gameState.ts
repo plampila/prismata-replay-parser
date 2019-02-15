@@ -316,21 +316,18 @@ export class GameState extends EventEmitter {
     }
 
     private canSacrificeUnits(rules: SacrificeRule[]): boolean {
-        return !rules.some(x => this.sacrificeList(x[0]).length < (x[1] !== undefined ? x[1] : 1));
+        return !rules.some(rule => this.sacrificeList(rule.unitName).length < rule.count);
     }
 
     private sacrificeUnits(rules: SacrificeRule[]): void {
-        rules.forEach(x => {
-            const name = x[0];
-            const count = x[1] !== undefined ? x[1] : 1;
-
-            const targets = this.sacrificeList(name);
-            if (targets.length < count) {
+        rules.forEach(rule => {
+            const targets = this.sacrificeList(rule.unitName);
+            if (targets.length < rule.count) {
                 throw new InvalidStateError('Not enough units to sacrifice.', rules);
             }
-            targets.length = count;
+            targets.length = rule.count;
             targets.forEach(target => {
-                if (target.defaultBlocking && target.abilityScript && !target.abilityUsed) {
+                if (target.defaultBlocking && target.abilityScript !== undefined && !target.abilityUsed) {
                     this.useAbility(target);
                 }
                 target.sacrificed = true;
@@ -339,10 +336,10 @@ export class GameState extends EventEmitter {
     }
 
     private cancelSacrificeUnits(rules: SacrificeRule[]): void {
-        rules.forEach(x => {
-            for (let i = 0; i < (x[1] !== undefined ? x[1] : 1); i++) {
-                const found = this.slate(this.activePlayer).find(y => y.name === x[0] && y.sacrificed);
-                if (!found) {
+        rules.forEach(rule => {
+            for (let i = 0; i < rule.count; i++) {
+                const found = this.slate(this.activePlayer).find(y => y.name === rule.unitName && y.sacrificed);
+                if (found === undefined) {
                     throw new InvalidStateError('No unit found to cancel ability sacrifice.', rules);
                 }
                 found.sacrificed = false;
@@ -351,28 +348,32 @@ export class GameState extends EventEmitter {
     }
 
     private runScript(unit: Unit, script: Script): void {
-        if (script.create !== undefined) {
-            script.create.forEach(x => {
-                const blueprint = this.blueprintForName(x[0]);
-                if (blueprint === undefined) {
-                    throw new DataError('Blueprint not found.', x[0]);
-                }
-                for (let i = 0; i < (x[2] !== undefined ? x[2] : 1); i++) {
-                    const constructed = this.constructUnit(blueprint, x[3] === undefined ? 1 : x[3],
-                        x[1] === 'own' ? this.activePlayer : this.villain(), x[4]);
-                    constructed.constructedBy = this.unitId(unit);
-                    this.emit('unitConstructed', constructed, unit);
-                }
-            });
-        }
+        script.create.forEach(rule => {
+            const blueprint = this.blueprintForName(rule.unitName);
+            if (blueprint === undefined) {
+                throw new DataError('Blueprint not found.', rule.unitName);
+            }
+            for (let i = 0; i < rule.count; i++) {
+                const constructed = this.constructUnit(blueprint, rule.buildTime,
+                    rule.forOpponent ? this.villain() : this.activePlayer, rule.customLifespan);
+                constructed.constructedBy = this.unitId(unit);
+                this.emit('unitConstructed', constructed, unit);
+            }
+        });
 
-        if (script.delay !== undefined) {
+        if (script.delay > 0) {
+            if (unit.delayed) {
+                throw new InvalidStateError('Already delayed.', unit);
+            }
             unit.delay = script.delay;
         }
 
         this.addResources(script.receive);
 
-        if (script.selfsac !== undefined) {
+        if (script.selfsac) {
+            if (unit.sacrificed) {
+                throw new InvalidStateError('Already sacrificed.', unit);
+            }
             unit.sacrificed = true;
         }
     }
@@ -385,28 +386,28 @@ export class GameState extends EventEmitter {
     }
 
     private reverseScript(unit: Unit, script: Script): void {
-        if (script.create !== undefined) {
-            script.create.forEach(x => {
-                const targetPlayer = x[1] === 'own' ? this.activePlayer : this.villain();
-                for (let i = 0; i < (x[2] !== undefined ? x[2] : 1); i++) {
-                    const found = this.slate(targetPlayer).slice().reverse().find(y => {
-                        return y.name === x[0] && y.constructedBy === this.unitId(unit);
-                    });
-                    if (!found) {
-                        throw new InvalidStateError('No unit to deconstruct.', unit);
-                    }
-                    this.destroyUnit(found, 'deconstructed');
+        script.create.forEach(rule => {
+            const targetPlayer = rule.forOpponent ? this.villain() : this.activePlayer;
+            for (let i = 0; i < rule.count; i++) {
+                const found = this.slate(targetPlayer).slice().reverse()
+                    .find(x => x.name === rule.unitName && x.constructedBy === this.unitId(unit));
+                if (!found) {
+                    throw new InvalidStateError('No unit to deconstruct.', unit);
                 }
-            });
-        }
+                this.destroyUnit(found, 'deconstructed');
+            }
+        });
 
-        if (script.delay !== undefined) {
+        if (script.delay > 0) {
+            if (!unit.delayed) {
+                throw new InvalidStateError('Not delayed.', unit);
+            }
             unit.delay = 0;
         }
 
         this.removeResources(script.receive);
 
-        if (script.selfsac !== undefined) {
+        if (script.selfsac) {
             if (!unit.sacrificed) {
                 throw new InvalidStateError('Not sacrificed.', unit);
             }
