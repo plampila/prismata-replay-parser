@@ -142,11 +142,11 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
                 let aVal: number;
                 let bVal: number;
                 if (key === 'delay-1') {
-                    aVal = a.delay ? a.delay - 1 : 0;
-                    bVal = b.delay ? b.delay - 1 : 0;
+                    aVal = a.delay > 0 ? a.delay - 1 : 0;
+                    bVal = b.delay > 0 ? b.delay - 1 : 0;
                 } else if (key === 'lifespan+delay') {
-                    aVal = a.lifespan ? a.lifespan + a.delay : 0; // tslint:disable-line:restrict-plus-operands
-                    bVal = b.lifespan ? b.lifespan + b.delay : 0; // tslint:disable-line:restrict-plus-operands
+                    aVal = a.lifespan !== undefined ? a.lifespan + a.delay : 0;
+                    bVal = b.lifespan !== undefined ? b.lifespan + b.delay : 0;
                 } else {
                     switch (key) {
                     case 'abilityUsed':
@@ -154,16 +154,19 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
                         bVal = b[key] === true ? 1 : 0;
                         break;
                     case 'lifespan':
-                        aVal = a[key] || Infinity;
-                        bVal = b[key] || Infinity;
+                        aVal = a.lifespan !== undefined ? a.lifespan : Infinity;
+                        bVal = b.lifespan !== undefined ? b.lifespan : Infinity;
                         break;
                     case 'assignedAttack':
                     case 'delay':
                     case 'charge':
-                    case 'toughness':
-                        aVal = a[key] || 0;
-                        bVal = b[key] || 0;
+                    case 'toughness': {
+                        const aTmp = a[key];
+                        aVal = aTmp !== undefined ? aTmp : 0;
+                        const bTmp = b[key];
+                        bVal = bTmp !== undefined ? bTmp : 0;
                         break;
+                    }
                     default:
                         throw new InvalidStateError('Unknown sort order.', key);
                     }
@@ -188,7 +191,7 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
     case ActionType.CancelUseAbility:
         if (units[0].defaultBlocking) {
             sortUnits(['>lifespan', '<toughness', '>charge']);
-        } else if (units[0].HPUsed) {
+        } else if (units[0].HPUsed > 0) {
             sortUnits(['<lifespan', '>toughness', '>charge']);
         } else {
             sortUnits(['<lifespan', '<toughness', '>charge']);
@@ -247,7 +250,7 @@ function parseCommand(data: ReplayCommand): Command {
         return { command, id };
     }
 
-    if (command === CommandType.ClickSpace || CommandType.EndCombinedAction) {
+    if (command === CommandType.ClickSpace || command === CommandType.EndCombinedAction) {
         if (id !== -1 && id !== 0) {
             throw new DataError('Unknown ID.', data);
         }
@@ -436,7 +439,7 @@ export class ReplayParser extends EventEmitter {
         }
 
         let validator: ReplayDataValidator;
-        if (options.strict) {
+        if (options.strict === true) {
             if (replayDataValidatorStrict === undefined) {
                 replayDataValidatorStrict = new ReplayDataValidator(true);
             }
@@ -463,7 +466,7 @@ export class ReplayParser extends EventEmitter {
             throw new Error(`Invalid replay data (${parsed.versionInfo.serverVersion}): ${validator.errorText()}`);
         }
 
-        if (options.strict) {
+        if (options.strict === true) {
             replayDataValidator.isReplayData(parsed); // remove unused properties
         }
 
@@ -517,7 +520,7 @@ export class ReplayParser extends EventEmitter {
             if (unit.player !== this.state.activePlayer || !unit.blocking() || unit.frozen()) {
                 return {};
             }
-            if (unit.assignedAttack) {
+            if (unit.assignedAttack > 0) {
                 if (this.state.attack(this.state.villain()) === 0 && this.state.absorber()) {
                     return {
                         action: ActionType.CancelAssignDefense,
@@ -556,7 +559,7 @@ export class ReplayParser extends EventEmitter {
                                 unit: source,
                             };
                         }
-                        if (!this.state.breaching() && !unit.fragile && !unit.assignedAttack &&
+                        if (!this.state.breaching() && !unit.fragile && unit.assignedAttack === 0 &&
                                 this.state.attack() < unit.toughness) {
                             return {
                                 action: ActionType.CancelUseAbility,
@@ -566,7 +569,7 @@ export class ReplayParser extends EventEmitter {
                     }
                     break;
                 case 'snipe':
-                    if (unit.assignedAttack) {
+                    if (unit.assignedAttack > 0) {
                         return { action: ActionType.CancelAssignAttack, unit };
                     }
                     return { action: ActionType.CancelUseAbility, unit: source };
@@ -579,7 +582,7 @@ export class ReplayParser extends EventEmitter {
                 return {};
             }
 
-            if (unit.assignedAttack) {
+            if (unit.assignedAttack > 0) {
                 const breachAbsorber = this.state.breachAbsorber();
                 if (this.state.attack() === 0 && breachAbsorber && unit !== breachAbsorber) {
                     return {
@@ -621,18 +624,18 @@ export class ReplayParser extends EventEmitter {
         if (unit.purchasedThisTurn()) {
             return { action: ActionType.CancelPurchase, unit };
         }
-        if (unit.constructedBy) {
+        if (unit.constructedBy !== undefined) {
             return {
                 action: ActionType.CancelUseAbility,
                 unit: this.state.units[unit.constructedBy],
             };
         }
 
-        if (!unit.abilityScript && !unit.targetAction) {
+        if (!unit.abilityScript && unit.targetAction === undefined) {
             return {};
         }
         if (unit.abilityUsed) {
-            if (unit.sacrificed && (!unit.abilityScript || !unit.abilityScript.selfsac)) {
+            if (unit.sacrificed && (!unit.abilityScript || unit.abilityScript.selfsac === undefined)) {
                 return {};
             }
             return { action: ActionType.CancelUseAbility, unit };
@@ -640,7 +643,7 @@ export class ReplayParser extends EventEmitter {
         if (unit.sacrificed || unit.delayed || unit.charge === 0 || unit.toughness < unit.HPUsed) {
             return {};
         }
-        if (unit.targetAction) {
+        if (unit.targetAction !== undefined) {
             // TODO: Check if there are legal targets
             return { action: ActionType.SelectForTargeting, unit };
         }
@@ -675,7 +678,7 @@ export class ReplayParser extends EventEmitter {
             this.state.useAbility(data.unit, data.target);
             break;
         case ActionType.Purchase:
-            if (!data.name) {
+            if (data.name === undefined) {
                 throw new DataError('Action requires a unit name.', action);
             }
             this.state.purchase(data.name);
@@ -720,7 +723,8 @@ export class ReplayParser extends EventEmitter {
 
             this.state.assignAttack(data.unit);
 
-            if (!data.unit.undefendable && !this.state.blockers(this.state.villain()).some(x => !x.assignedAttack)) {
+            if (!data.unit.undefendable &&
+                !this.state.blockers(this.state.villain()).some(x => x.assignedAttack === 0)) {
                 this.inDamagePhase = true;
             }
             break;
@@ -919,7 +923,7 @@ export class ReplayParser extends EventEmitter {
         }
 
         const { action, unit }: ClickAction = this.getClickAction(clickedUnit);
-        if (!action) {
+        if (action === undefined) {
             throw new InvalidStateError('No click action.', clickedUnit);
         }
 
@@ -972,7 +976,7 @@ export class ReplayParser extends EventEmitter {
             if (unit === undefined) {
                 throw new InvalidStateError(`No unit for action: ${action}`);
             }
-            if (unit.targetAction && clickedUnit !== unit) {
+            if (unit.targetAction !== undefined && clickedUnit !== unit) {
                 this.state.targetingUnits(clickedUnit).forEach(x => {
                     this.runAction(action, { unit: x });
                 });
@@ -1002,7 +1006,7 @@ export class ReplayParser extends EventEmitter {
         }
 
         const { action, unit }: ClickAction = this.getClickAction(clickedUnit);
-        if (!action) {
+        if (action === undefined) {
             throw new InvalidStateError('No click action.', clickedUnit);
         }
 
@@ -1020,7 +1024,7 @@ export class ReplayParser extends EventEmitter {
             return;
         }
 
-        if (action === ActionType.CancelUseAbility && unit.targetAction && clickedUnit !== unit) {
+        if (action === ActionType.CancelUseAbility && unit.targetAction !== undefined && clickedUnit !== unit) {
             const targets = this.state.slate(clickedUnit.player).filter(x => {
                 if (x.name !== clickedUnit.name) {
                     return false;
@@ -1139,9 +1143,6 @@ export class ReplayParser extends EventEmitter {
                 throw new InvalidStateError('Command requires ID.', command);
             }
             const blueprint = this.state.deck[id];
-            if (!blueprint) {
-                throw new InvalidStateError('Blueprint not found', id);
-            }
             if (this.inConfirmPhase) {
                 this.runAction(ActionType.Undo);
                 break;
@@ -1179,7 +1180,7 @@ export class ReplayParser extends EventEmitter {
                 break;
             }
             if (this.state.attack() > 0 && !this.inDamagePhase &&
-                    !this.state.blockers(this.state.villain()).some(x => !x.assignedAttack)) {
+                    !this.state.blockers(this.state.villain()).some(x => x.assignedAttack === 0)) {
                 this.runAction(ActionType.ProceedToDamage);
                 break;
             }
@@ -1269,13 +1270,10 @@ export class ReplayParser extends EventEmitter {
 
     public getPlayerInfo(player: Player): PlayerInfo {
         const playerInfo = this.data.playerInfo;
-        if (!playerInfo) {
-            throw new DataError('Player info missing.');
-        }
 
         const info: PlayerInfo = {
             name: playerInfo[player].name,
-            bot: playerInfo[player].bot ? true : false,
+            bot: playerInfo[player].bot !== '',
         };
         if (playerInfo[player].name !== playerInfo[player].displayName) {
             info.displayName = playerInfo[player].displayName;
@@ -1328,7 +1326,7 @@ export class ReplayParser extends EventEmitter {
             startPosition.units[rule[1]] = rule[0];
         });
 
-        if (info.initResources[player] && info.initResources[player] !== '0') {
+        if (info.initResources[player] !== '0') {
             startPosition.resources = parseResources(info.initResources[player]);
         }
 

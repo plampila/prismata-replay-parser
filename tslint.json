@@ -50,6 +50,9 @@
         "quotemark": {
             "options": ["single", "avoid-template"]
         },
+        "strict-boolean-expressions": {
+            "options": ["allow-undefined-union"]
+        },
         "strict-type-predicates": true,
         "switch-default": true,
         "switch-final-break": {

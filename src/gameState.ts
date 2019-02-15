@@ -168,9 +168,6 @@ export class GameState extends EventEmitter {
     }
 
     private requireValidUnit(unit: Unit, allowSacrificed: boolean): void {
-        if (!unit) {
-            throw new InvalidStateError('No unit given.');
-        }
         if (this.unitId(unit) === undefined) {
             throw new InvalidStateError('Unit with no ID.', unit);
         }
@@ -319,13 +316,13 @@ export class GameState extends EventEmitter {
     }
 
     private canSacrificeUnits(rules: SacrificeRule[]): boolean {
-        return !rules.some(x => this.sacrificeList(x[0]).length < (x[1] || 1));
+        return !rules.some(x => this.sacrificeList(x[0]).length < (x[1] !== undefined ? x[1] : 1));
     }
 
     private sacrificeUnits(rules: SacrificeRule[]): void {
         rules.forEach(x => {
             const name = x[0];
-            const count = (x[1] || 1);
+            const count = x[1] !== undefined ? x[1] : 1;
 
             const targets = this.sacrificeList(name);
             if (targets.length < count) {
@@ -343,7 +340,7 @@ export class GameState extends EventEmitter {
 
     private cancelSacrificeUnits(rules: SacrificeRule[]): void {
         rules.forEach(x => {
-            for (let i = 0; i < (x[1] || 1); i++) {
+            for (let i = 0; i < (x[1] !== undefined ? x[1] : 1); i++) {
                 const found = this.slate(this.activePlayer).find(y => y.name === x[0] && y.sacrificed);
                 if (!found) {
                     throw new InvalidStateError('No unit found to cancel ability sacrifice.', rules);
@@ -360,7 +357,7 @@ export class GameState extends EventEmitter {
                 if (blueprint === undefined) {
                     throw new DataError('Blueprint not found.', x[0]);
                 }
-                for (let i = 0; i < (x[2] || 1); i++) {
+                for (let i = 0; i < (x[2] !== undefined ? x[2] : 1); i++) {
                     const constructed = this.constructUnit(blueprint, x[3] === undefined ? 1 : x[3],
                         x[1] === 'own' ? this.activePlayer : this.villain(), x[4]);
                     constructed.constructedBy = this.unitId(unit);
@@ -375,7 +372,7 @@ export class GameState extends EventEmitter {
 
         this.addResources(script.receive);
 
-        if (script.selfsac) {
+        if (script.selfsac !== undefined) {
             unit.sacrificed = true;
         }
     }
@@ -391,7 +388,7 @@ export class GameState extends EventEmitter {
         if (script.create !== undefined) {
             script.create.forEach(x => {
                 const targetPlayer = x[1] === 'own' ? this.activePlayer : this.villain();
-                for (let i = 0; i < (x[2] || 1); i++) {
+                for (let i = 0; i < (x[2] !== undefined ? x[2] : 1); i++) {
                     const found = this.slate(targetPlayer).slice().reverse().find(y => {
                         return y.name === x[0] && y.constructedBy === this.unitId(unit);
                     });
@@ -409,7 +406,7 @@ export class GameState extends EventEmitter {
 
         this.removeResources(script.receive);
 
-        if (script.selfsac) {
+        if (script.selfsac !== undefined) {
             if (!unit.sacrificed) {
                 throw new InvalidStateError('Not sacrificed.', unit);
             }
@@ -453,11 +450,11 @@ export class GameState extends EventEmitter {
             if (unit.beginOwnTurnScript) {
                 this.runScript(unit, unit.beginOwnTurnScript);
             }
-            if (unit.goldResonate) {
+            if (unit.goldResonate !== undefined) {
                 this.resources[unit.player].gold +=
                     this.slate(unit.player).filter(x => x.name === unit.goldResonate && !x.delayed).length;
             }
-            if (unit.resonate) {
+            if (unit.resonate !== undefined) {
                 this.addAttack(this.slate(unit.player).filter(x => x.name === unit.resonate && !x.delayed).length);
             }
         });
@@ -486,7 +483,7 @@ export class GameState extends EventEmitter {
 
         if (this.defensesOverran() && this.attack() > 0) {
             // FIXME: Overkill
-            if (this.slate(this.villain()).some(x => !x.purchased && !x.assignedAttack &&
+            if (this.slate(this.villain()).some(x => !x.purchased && x.assignedAttack === 0 &&
                     (x.fragile || x.toughness < this.attack()))) {
                 throw new InvalidStateError('Attack left unassigned after defenses overran.');
             }
@@ -513,7 +510,7 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Not in defense phase.');
         }
         this.requireFriendlyUnit(unit);
-        if (unit.assignedAttack) {
+        if (unit.assignedAttack > 0) {
             throw new InvalidStateError('Already assigned.', unit);
         }
         if (!unit.blocking()) {
@@ -540,7 +537,7 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Not in defense phase.');
         }
         this.requireFriendlyUnit(unit);
-        if (!unit.assignedAttack) {
+        if (unit.assignedAttack === 0) {
             throw new InvalidStateError('Not assigned.', unit);
         }
 
@@ -577,7 +574,7 @@ export class GameState extends EventEmitter {
             throw new InvalidStateError('Blueprint not found.');
         }
 
-        if (!this.supplies[this.activePlayer][blueprint.name]) {
+        if (this.supplies[this.activePlayer][blueprint.name] === 0) {
             return false;
         }
         if (!this.canRemoveResources(blueprint.buyCost)) {
@@ -651,7 +648,7 @@ export class GameState extends EventEmitter {
     public canUseAbility(unit: Unit, target?: Unit): boolean {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit);
-        if (!unit.abilityScript && !unit.targetAction) {
+        if (!unit.abilityScript && unit.targetAction === undefined) {
             throw new InvalidStateError('Unit has no ability.', unit);
         }
         if (unit.abilityUsed) {
@@ -676,7 +673,7 @@ export class GameState extends EventEmitter {
                 return false;
             }
         }
-        if (!unit.targetAction) {
+        if (unit.targetAction === undefined) {
             if (target) {
                 throw new InvalidStateError('Target given, but no target action.', unit);
             }
@@ -740,7 +737,7 @@ export class GameState extends EventEmitter {
             unit.charge--;
         }
 
-        if (!unit.targetAction) {
+        if (unit.targetAction === undefined) {
             if (target) {
                 throw new InvalidStateError('Target given, but no target action.', unit);
             }
@@ -782,7 +779,7 @@ export class GameState extends EventEmitter {
     public canCancelUseAbility(unit: Unit): boolean {
         this.requireActionPhase();
         this.requireFriendlyUnit(unit, true);
-        if (!unit.abilityScript && !unit.targetAction) {
+        if (!unit.abilityScript && unit.targetAction === undefined) {
             throw new InvalidStateError('Unit has no ability.', unit);
         }
         if (!unit.abilityUsed) {
@@ -793,7 +790,7 @@ export class GameState extends EventEmitter {
             return false;
         }
 
-        if (!unit.targetAction) {
+        if (unit.targetAction === undefined) {
             return true;
         }
 
@@ -855,7 +852,7 @@ export class GameState extends EventEmitter {
         }
         unit.abilityUsed = false;
 
-        if (!unit.targetAction) {
+        if (unit.targetAction === undefined) {
             return;
         }
 
@@ -893,7 +890,7 @@ export class GameState extends EventEmitter {
         this.blockers(this.villain())
             .filter(x => !x.defensesBypassed)
             .forEach(x => {
-                assert(!x.assignedAttack);
+                assert(x.assignedAttack === 0);
                 this.emit('assignAttackBlocker', x);
                 this.removeAttack(x.toughness);
                 x.assignedAttack = x.toughness;
@@ -920,7 +917,7 @@ export class GameState extends EventEmitter {
         if (!this.defensesOverran() && !unit.undefendable) {
             throw new InvalidStateError('Can not target unit before defenses are overrun.', unit);
         }
-        if (unit.assignedAttack) {
+        if (unit.assignedAttack > 0) {
             throw new InvalidStateError('Unit already targeted.', unit);
         }
 
