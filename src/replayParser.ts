@@ -5,13 +5,44 @@ import * as timsort from 'timsort';
 import { convertBlueprintFromReplay, renameBlueprintFields } from './blueprint';
 import { DataError, InvalidStateError, NotImplementedError } from './customErrors';
 import { GameState, GameStateSnapshot, InitialState, Player } from './gameState';
-import { ReplayCommand, ReplayData, ReplayPlayerRating, ReplayPlayerTime } from './replayData';
+import { ReplayCommand, ReplayData, ReplayPlayerRating } from './replayData';
 import { convert as convert146 } from './replayData146';
 import { convert as convert153 } from './replayData153';
 import { ReplayDataValidator } from './replayDataValidator';
 import { parseResources, Resources } from './resources';
 import { Unit } from './unit';
 import { targetingIsUseful } from './util';
+
+export interface PlayerTime {
+    bank: number;
+    bankDilution: number;
+    increment: number;
+    initial: number;
+}
+
+export interface DeckInfo {
+    baseSet: string[];
+    randomSet: string[];
+    customSupplies?: { [unitName: string]: number };
+}
+
+export interface PlayerStartPosition {
+    units: { [unitName: string]: number };
+    resources?: Resources;
+}
+
+export interface PlayerInfo {
+    name: string;
+    bot: boolean;
+    displayName?: string;
+    rating?: PlayerRating;
+    finalRating?: PlayerRating;
+}
+
+export interface Result {
+    endCondition: EndCondition;
+    winner?: Player;
+}
 
 export enum GameFormat {
     Ranked = 200,
@@ -55,7 +86,7 @@ export enum ActionType {
     Revert,
 }
 
-enum ReplayCommandType {
+enum CommandType {
     ClickUnit = 'inst clicked',
     ShiftClickUnit = 'inst shift clicked',
     ClickBlueprint = 'card clicked',
@@ -69,11 +100,11 @@ enum ReplayCommandType {
     Emote = 'emote',
 }
 
-const REPLAY_COMMANDS_WITH_IDS = [
-    ReplayCommandType.ClickUnit,
-    ReplayCommandType.ShiftClickUnit,
-    ReplayCommandType.ClickBlueprint,
-    ReplayCommandType.ShiftClickBlueprint,
+const COMMAND_TYPES_WITH_IDS = [
+    CommandType.ClickUnit,
+    CommandType.ShiftClickUnit,
+    CommandType.ClickBlueprint,
+    CommandType.ShiftClickBlueprint,
 ];
 
 const replayDataValidator = new ReplayDataValidator(false);
@@ -189,19 +220,19 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
 }
 
 interface Command {
-    command: ReplayCommandType;
+    command: CommandType;
     id?: number;
     player?: number;
 }
 
-function isReplayCommandType(value: string): value is ReplayCommandType {
-    return Object.values(ReplayCommandType).includes(value);
+function isReplayCommandType(value: string): value is CommandType {
+    return Object.values(CommandType).includes(value);
 }
 
 function parseCommand(data: ReplayCommand): Command {
     if (data._type.startsWith('emote')) {
         return {
-            command: ReplayCommandType.Emote,
+            command: CommandType.Emote,
             player: data._id,
         };
     }
@@ -212,11 +243,11 @@ function parseCommand(data: ReplayCommand): Command {
         throw new DataError('Unknown command type.', data);
     }
 
-    if (REPLAY_COMMANDS_WITH_IDS.includes(command)) {
+    if (COMMAND_TYPES_WITH_IDS.includes(command)) {
         return { command, id };
     }
 
-    if (command === ReplayCommandType.ClickSpace || ReplayCommandType.EndCombinedAction) {
+    if (command === CommandType.ClickSpace || CommandType.EndCombinedAction) {
         if (id !== -1 && id !== 0) {
             throw new DataError('Unknown ID.', data);
         }
@@ -300,14 +331,6 @@ function parseDeckAndInitInfo(data: ReplayData): InitialState {
     };
 }
 
-interface PlayerInfo {
-    name: string;
-    bot: boolean;
-    displayName?: string;
-    rating?: PlayerRating;
-    finalRating?: PlayerRating;
-}
-
 interface PlayerRating {
     value: number;
     tier: number;
@@ -369,22 +392,6 @@ interface ClickAction {
     unit?: Unit;
 }
 
-interface DeckInfo {
-    baseSet: string[];
-    randomSet: string[];
-    customSupplies?: { [unitName: string]: number };
-}
-
-interface PlayerStartPosition {
-    units: { [unitName: string]: number };
-    resources?: Resources;
-}
-
-interface Result {
-    endCondition: EndCondition;
-    winner?: Player;
-}
-
 interface ActionData {
     name?: string;
     unit?: Unit;
@@ -397,7 +404,7 @@ interface ReplayParserOptions {
 
 export declare interface ReplayParser {
     on(event: 'undoSnapshot' | 'initGame' | 'initGameDone', listener: () => void): this;
-    on(event: 'command' | 'commandDone', listener: (action: ReplayCommandType, id?: number) => void): this;
+    on(event: 'command' | 'commandDone', listener: (action: CommandType, id?: number) => void): this;
     on(event: 'action' | 'actionDone', listener: (action: ActionType, data: ActionData) => void): this;
 }
 
@@ -1095,11 +1102,11 @@ export class ReplayParser extends EventEmitter {
         });
     }
 
-    private runCommand(command: ReplayCommandType, id?: number): void {
+    private runCommand(command: CommandType, id?: number): void {
         this.emit('command', command, id);
 
         switch (command) {
-        case ReplayCommandType.ClickUnit: {
+        case CommandType.ClickUnit: {
             if (id === undefined) {
                 throw new InvalidStateError('Command requires ID.', command);
             }
@@ -1113,7 +1120,7 @@ export class ReplayParser extends EventEmitter {
             this.runClickUnit(unit);
             break;
         }
-        case ReplayCommandType.ShiftClickUnit: {
+        case CommandType.ShiftClickUnit: {
             if (id === undefined) {
                 throw new InvalidStateError('Command requires ID.', command);
             }
@@ -1127,8 +1134,8 @@ export class ReplayParser extends EventEmitter {
             this.runShiftClickUnit(unit);
             break;
         }
-        case ReplayCommandType.ClickBlueprint:
-        case ReplayCommandType.ShiftClickBlueprint: {
+        case CommandType.ClickBlueprint:
+        case CommandType.ShiftClickBlueprint: {
             if (id === undefined) {
                 throw new InvalidStateError('Command requires ID.', command);
             }
@@ -1147,11 +1154,11 @@ export class ReplayParser extends EventEmitter {
             this.addUndoSnapshot();
             do {
                 this.runAction(ActionType.Purchase, { name: blueprint.name });
-            } while (command === ReplayCommandType.ShiftClickBlueprint &&
+            } while (command === CommandType.ShiftClickBlueprint &&
                 this.state.canPurchase(blueprint.name));
             break;
         }
-        case ReplayCommandType.ClickSpace:
+        case CommandType.ClickSpace:
             if (this.inConfirmPhase) {
                 this.runAction(ActionType.CommitTurn);
                 break;
@@ -1180,10 +1187,10 @@ export class ReplayParser extends EventEmitter {
             // TODO: Check that attack is spent
             this.runAction(ActionType.EndTurn);
             break;
-        case ReplayCommandType.CancelTargeting:
+        case CommandType.CancelTargeting:
             this.runAction(ActionType.CancelTargeting);
             break;
-        case ReplayCommandType.EndCombinedAction:
+        case CommandType.EndCombinedAction:
             if (!this.combinedAction) {
                 throw new InvalidStateError('Not in combined action.');
             }
@@ -1191,17 +1198,17 @@ export class ReplayParser extends EventEmitter {
                 this.stopCombinedAction();
             }
             break;
-        case ReplayCommandType.ClickRevert:
+        case CommandType.ClickRevert:
             this.addUndoSnapshot();
             this.runAction(ActionType.Revert);
             break;
-        case ReplayCommandType.ClickUndo:
+        case CommandType.ClickUndo:
             this.runAction(ActionType.Undo);
             break;
-        case ReplayCommandType.ClickRedo:
+        case CommandType.ClickRedo:
             this.runAction(ActionType.Redo);
             break;
-        case ReplayCommandType.Emote:
+        case CommandType.Emote:
             break;
         default:
             throw new DataError('Unknown command type.', command);
@@ -1282,7 +1289,7 @@ export class ReplayParser extends EventEmitter {
         return info;
     }
 
-    public getTimeControl(player: Player): ReplayPlayerTime {
+    public getTimeControl(player: Player): PlayerTime {
         return this.data.timeInfo.playerTime[player];
     }
 
