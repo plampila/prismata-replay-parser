@@ -130,7 +130,7 @@ export class GameState extends EventEmitter {
 
     public canOverKill(): boolean {
         return !this.slate(this.villain())
-            .some(x => !x.sacrificed && x.assignedAttack < x.toughness && (!x.delay || !x.purchased));
+            .some(x => !x.sacrificed && x.assignedAttack < x.toughness && (!x.delayed || !x.purchased));
     }
 
     private targetedUnit(unit: Unit): Unit | undefined {
@@ -311,7 +311,7 @@ export class GameState extends EventEmitter {
     }
 
     private sacrificeList(name: string, player: Player = this.activePlayer): Unit[] {
-        const found = this.slate(player).filter(x => !x.sacrificed && x.name === name && !x.delay);
+        const found = this.slate(player).filter(x => x.name === name && !x.sacrificed && !x.delayed);
         found.reverse();
         // Must be a stable sort
         timsort.sort(found, (a, b) => a.abilityUsed === b.abilityUsed ? 0 : a.abilityUsed ? -1 : 1);
@@ -404,7 +404,7 @@ export class GameState extends EventEmitter {
         }
 
         if (script.delay !== undefined) {
-            unit.delay = undefined;
+            unit.delay = 0;
         }
 
         this.removeResources(script.receive);
@@ -431,7 +431,7 @@ export class GameState extends EventEmitter {
             }
             unit.toughness += unit.HPGained;
             unit.toughness = Math.min(unit.toughness, unit.HPMax);
-            if (!unit.delay && unit.lifespan !== undefined && unit.lifespan > 0) {
+            if (!unit.delayed && unit.lifespan !== undefined && unit.lifespan > 0) {
                 unit.lifespan--;
                 if (unit.lifespan === 0) {
                     this.destroyUnit(unit, 'lifespan');
@@ -441,29 +441,24 @@ export class GameState extends EventEmitter {
 
             unit.disruption = 0;
             unit.abilityUsed = false;
-            if (unit.delay) {
+            if (unit.delayed) {
                 unit.delay--;
-                if (unit.delay <= 0) {
-                    unit.delay = undefined;
+                if (!unit.delayed) {
                     unit.building = false;
-                    unit.purchased = false;
                 }
-            } else if (unit.purchased) {
-                unit.purchased = false;
             }
         });
 
-        this.slate(this.activePlayer).filter(x => !x.delay).forEach(unit => {
+        this.slate(this.activePlayer).filter(x => !x.delayed).forEach(unit => {
             if (unit.beginOwnTurnScript) {
                 this.runScript(unit, unit.beginOwnTurnScript);
             }
             if (unit.goldResonate) {
-                this.resources[unit.player].gold += this.slate(unit.player)
-                    .filter(x => !x.delay && x.name === unit.goldResonate).length;
+                this.resources[unit.player].gold +=
+                    this.slate(unit.player).filter(x => x.name === unit.goldResonate && !x.delayed).length;
             }
             if (unit.resonate) {
-                this.addAttack(this.slate(unit.player)
-                    .filter(x => !x.delay && x.name === unit.resonate).length);
+                this.addAttack(this.slate(unit.player).filter(x => x.name === unit.resonate && !x.delayed).length);
             }
         });
     }
@@ -676,8 +671,8 @@ export class GameState extends EventEmitter {
             return false;
         }
         if (unit.abilityNetherfy) {
-            if (!this.slate(this.villain()).some(x => x.name === 'Drone' &&
-                !x.sacrificed && (!x.delay || !x.purchased) && !x.blocking())) {
+            if (!this.slate(this.villain())
+                    .some(x => x.name === 'Drone' && !x.sacrificed && (!x.delayed || !x.purchased) && !x.blocking())) {
                 return false;
             }
         }
@@ -729,11 +724,11 @@ export class GameState extends EventEmitter {
         assert(unit.toughness >= 0);
 
         if (unit.abilityNetherfy) {
-            const candidates = this.slate(this.villain()).filter(x => x.name === 'Drone' &&
-                !x.sacrificed && (!x.delay || !x.purchased) && !x.blocking());
+            const candidates = this.slate(this.villain())
+                .filter(x => x.name === 'Drone' && !x.sacrificed && (!x.delayed || !x.purchased) && !x.blocking());
             assert(candidates.length > 0);
             // Already built drones are sniped before building ones
-            timsort.sort(candidates, (a, b) => (b.delay || 0) - (a.delay || 0));
+            timsort.sort(candidates, (a, b) => b.delay - a.delay);
             candidates[candidates.length - 1].sacrificed = true;
         }
 

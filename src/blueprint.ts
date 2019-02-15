@@ -21,7 +21,7 @@ export interface Blueprint {
     defaultBlocking: boolean;
     fragile: boolean;
     HPGained: number;
-    HPMax?: number;
+    HPMax: number;
     lifespan?: number;
     spell: boolean;
     supply?: number;
@@ -82,7 +82,7 @@ export function convertBlueprintFromReplay(data: ReplayBlueprint): Blueprint {
         defaultBlocking: data.defaultBlocking === 1,
         fragile: data.fragile === 1,
         HPGained: def(data.HPGained, 0),
-        HPMax: data.HPMax,
+        HPMax: data.HPMax !== undefined ? data.HPMax : def(data.toughness, 1),
         lifespan: typeof data.lifespan === 'string' ? parseInt(data.lifespan, 10) : data.lifespan,
         spell: data.spell === 1,
         supply: rarityToSupply(data.rarity),

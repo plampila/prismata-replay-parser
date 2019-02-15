@@ -145,8 +145,8 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
                     aVal = a.delay ? a.delay - 1 : 0;
                     bVal = b.delay ? b.delay - 1 : 0;
                 } else if (key === 'lifespan+delay') {
-                    aVal = a.lifespan ? a.lifespan + (a.delay || 0) : 0; // tslint:disable-line:restrict-plus-operands
-                    bVal = b.lifespan ? b.lifespan + (b.delay || 0) : 0; // tslint:disable-line:restrict-plus-operands
+                    aVal = a.lifespan ? a.lifespan + a.delay : 0; // tslint:disable-line:restrict-plus-operands
+                    bVal = b.lifespan ? b.lifespan + b.delay : 0; // tslint:disable-line:restrict-plus-operands
                 } else {
                     switch (key) {
                     case 'abilityUsed':
@@ -203,7 +203,7 @@ function sortShiftClickMatches(action: ActionType, units: Unit[]): Unit[] {
         if (units[0].defaultBlocking) {
             // Sort blockers and non-blockers separately
             sortUnits(['<delay', '<abilityUsed', '<lifespan', '>toughness', '>charge']);
-            const offset = units.findIndex(x => x.abilityUsed || x.delay !== undefined);
+            const offset = units.findIndex(x => x.abilityUsed || x.delayed);
             sortUnits(['<assignedAttack', '<delay-1', '>lifespan+delay', '<toughness', '>charge'],
                       offset < 0 ? undefined : offset);
         } else {
@@ -599,11 +599,11 @@ export class ReplayParser extends EventEmitter {
                 return { action: ActionType.CancelAssignAttack, unit };
             }
 
-            if (unit.undefendable && !unit.delay) {
+            if (unit.undefendable && !unit.delayed) {
                 return { action: ActionType.AssignAttack, unit };
             }
             if (this.state.defensesOverran()) {
-                if ((unit.delay && unit.purchased && !unit.blocking()) &&
+                if ((unit.delayed && unit.purchased && !unit.blocking()) &&
                     !this.state.canOverKill()) {
                     return {};
                 }
@@ -637,8 +637,7 @@ export class ReplayParser extends EventEmitter {
             }
             return { action: ActionType.CancelUseAbility, unit };
         }
-        if (unit.sacrificed || unit.delay || unit.charge === 0 ||
-            (unit.HPUsed && unit.toughness < unit.HPUsed)) {
+        if (unit.sacrificed || unit.delayed || unit.charge === 0 || unit.toughness < unit.HPUsed) {
             return {};
         }
         if (unit.targetAction) {
@@ -932,7 +931,7 @@ export class ReplayParser extends EventEmitter {
             if (unit.assignedAttack < unit.toughness) {
                 this.addUndoSnapshot();
                 if (unit === clickedUnit && this.state.slate(clickedUnit.player)
-                    .some(x => x !== clickedUnit && x.name === clickedUnit.name && !x.delay)) {
+                    .some(x => x !== clickedUnit && x.name === clickedUnit.name && !x.delayed)) {
                     this.startCombinedAction();
                 }
                 snapshotDone = true;

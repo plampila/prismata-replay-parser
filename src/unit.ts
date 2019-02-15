@@ -12,7 +12,6 @@ export class Unit {
     // Constants
     public readonly player: Player;
     public readonly buildTime: number;
-    public readonly HPMax: number; // tslint:disable-line:variable-name
 
     private readonly blueprint: Blueprint;
 
@@ -22,7 +21,7 @@ export class Unit {
     public building: boolean;
     public constructedBy?: number;
     public defensesBypassed: boolean = false;
-    public delay?: number;
+    public delay: number;
     public destroyed: boolean = false;
     public disruption: number = 0;
     public purchased: boolean = false;
@@ -40,10 +39,9 @@ export class Unit {
         this.blueprint = blueprint;
         this.player = player;
         this.buildTime = options.buildTime !== undefined ? options.buildTime : blueprint.buildTime;
-        this.HPMax = blueprint.HPMax !== undefined ? blueprint.HPMax : blueprint.toughness;
 
         this.building = this.buildTime > 0;
-        this.delay = this.buildTime > 0 ? this.buildTime : undefined;
+        this.delay = this.buildTime;
         this.charge = blueprint.charge;
         this.lifespan = options.lifespan !== undefined ? options.lifespan : blueprint.lifespan;
         this.targetAction = blueprint.targetAction;
@@ -63,6 +61,7 @@ export class Unit {
     public get fragile(): boolean { return this.blueprint.fragile; }
     public get goldResonate(): string | undefined { return this.blueprint.goldResonate; }
     public get HPGained(): number { return this.blueprint.HPGained; }
+    public get HPMax(): number { return this.blueprint.HPMax; }
     public get HPUsed(): number { return this.blueprint.HPUsed; }
     public get name(): string { return this.blueprint.name; }
     public get originalName(): string | undefined { return this.blueprint.originalName; }
@@ -72,7 +71,7 @@ export class Unit {
     public get undefendable(): boolean { return this.blueprint.undefendable; }
 
     public clone(): Unit {
-        const other = new Unit(this.blueprint, this.player);
+        const other = new Unit(this.blueprint, this.player, { buildTime: this.buildTime });
 
         other.abilityUsed = this.abilityUsed;
         other.assignedAttack = this.assignedAttack;
@@ -97,9 +96,12 @@ export class Unit {
         return other;
     }
 
+    public get delayed(): boolean {
+        return this.delay > 0;
+    }
+
     public blocking(): boolean {
-        return !this.destroyed && !this.sacrificed && (this.delay === undefined || this.delay === 0) &&
-            this.defaultBlocking && !this.abilityUsed;
+        return !this.destroyed && !this.sacrificed && !this.delayed && this.defaultBlocking && !this.abilityUsed;
     }
 
     public purchasedThisTurn(): boolean {
@@ -107,7 +109,7 @@ export class Unit {
             return false;
         }
         if (this.buildTime === 0) {
-            return this.delay === undefined;
+            return this.delayed;
         }
         return this.delay === this.buildTime;
     }
