@@ -443,7 +443,10 @@ export class GameState extends EventEmitter {
                 unit.delay--;
                 if (!unit.delayed) {
                     unit.building = false;
+                    unit.purchased = false;
                 }
+            } else {
+                unit.purchased = false;
             }
         });
 

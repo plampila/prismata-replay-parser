@@ -116,7 +116,7 @@ export class Unit {
     }
 
     private validSnipeTarget(condition: Condition): boolean {
-        if (this.delay > 0 && this.purchased) {
+        if (this.delayed && this.purchased) {
             return false;
         }
         if (this.assignedAttack >= this.toughness) {
