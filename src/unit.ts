@@ -108,9 +108,6 @@ export class Unit {
         if (this.destroyed || !this.purchased) {
             return false;
         }
-        if (this.buildTime === 0) {
-            return this.delayed;
-        }
         return this.delay === this.buildTime;
     }
 
