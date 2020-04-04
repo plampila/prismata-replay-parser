@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "ajv": "^6.8.1",
-    "minimist": "^1.2.0",
+    "minimist": "^1.2.3",
     "source-map-support": "^0.5.10",
     "timsort": "^0.3.0"
   },
